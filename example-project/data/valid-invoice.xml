@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<invoice id="INV-001">
+  <billingTo>Acme Corp</billingTo>
+  <date>2023-10-15</date>
+  <amount>150.50</amount>
+  <currency>USD</currency>
+</invoice>

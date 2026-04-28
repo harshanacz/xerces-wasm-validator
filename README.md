@@ -179,6 +179,20 @@ interface Diagnostic {
 
 ---
 
+## Standalone Project Example
+
+We've provided a complete standalone use-case in the `example-project/` directory demonstrating how to install and use `xerces-wasm` as an npm dependency inside a real-world project (validating an XML Invoice).
+
+To run the usecase locally:
+
+```bash
+cd example-project
+npm install
+npm start
+```
+
+---
+
 ## License
 
 [MIT](./LICENSE) © Harshana Amuwatte

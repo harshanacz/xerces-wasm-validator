@@ -1,0 +1,12 @@
+{
+  "name": "invoice-validator",
+  "version": "1.0.0",
+  "description": "A standalone example using xerces-wasm as an npm dependency",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "xerces-wasm": "^0.2.0"
+  }
+}

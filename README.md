@@ -44,6 +44,8 @@ pnpm add xerces-wasm
 
 ## Quick Start
 
+**From strings:**
+
 ```typescript
 import { validate } from 'xerces-wasm';
 
@@ -61,20 +63,56 @@ if (result.valid) {
 }
 ```
 
+**From files (Node.js):**
+
+```typescript
+import { validateFiles } from 'xerces-wasm';
+
+const result = await validateFiles('./document.xml', './schema.xsd');
+```
+
+**From Buffers or Blobs:**
+
+```typescript
+import { validate } from 'xerces-wasm';
+import { readFile } from 'fs/promises';
+
+const xml = await readFile('./document.xml');   // Buffer
+const xsd = await readFile('./schema.xsd');     // Buffer
+const result = await validate(xml, xsd);
+```
+
 ---
 
 ## API
 
 ### `validate(xml, xsd)`
 
+Accepts strings, `Buffer`s, or `Blob`/`File` objects — mix and match freely.
+
 ```typescript
-function validate(xml: string, xsd: string): Promise<ValidationResult>
+type XmlInput = string | Buffer | Blob | File;
+
+function validate(xml: XmlInput, xsd: XmlInput): Promise<ValidationResult>
 ```
 
-| Parameter | Type     | Description              |
-|-----------|----------|--------------------------|
-| `xml`     | `string` | XML document to validate |
-| `xsd`     | `string` | XSD schema to validate against |
+| Parameter | Type       | Description              |
+|-----------|------------|--------------------------|
+| `xml`     | `XmlInput` | XML document to validate |
+| `xsd`     | `XmlInput` | XSD schema to validate against |
+
+### `validateFiles(xmlPath, xsdPath)`
+
+Convenience wrapper for Node.js file paths — reads both files then validates.
+
+```typescript
+function validateFiles(xmlPath: string, xsdPath: string): Promise<ValidationResult>
+```
+
+| Parameter  | Type     | Description           |
+|------------|----------|-----------------------|
+| `xmlPath`  | `string` | Path to XML file      |
+| `xsdPath`  | `string` | Path to XSD file      |
 
 ### `ValidationResult`
 

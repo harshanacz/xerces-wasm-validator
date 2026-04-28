@@ -21,7 +21,7 @@ No reliable XSD validator exists in the JS ecosystem. `xerces-wasm` brings the g
 
 - **Battle-tested core** — Apache Xerces-C is used in production by NASA, Apache, and IBM
 - **Zero native dependencies** — ships as a `.wasm` binary, works anywhere JS runs
-- **Full XSD 1.0 support** — not a subset, not a reimplementation
+- **Full XSD 1.0 support** — including `xs:import` and `xs:include` across multiple files
 - **Structured error output** — parse errors and schema violations with line/column info
 
 ---
@@ -82,37 +82,61 @@ const xsd = await readFile('./schema.xsd');     // Buffer
 const result = await validate(xml, xsd);
 ```
 
+**Multi-file schemas (`xs:import` / `xs:include`):**
+
+```typescript
+import { validate, validateFiles } from 'xerces-wasm';
+
+// From strings — pass imports keyed by the schemaLocation value used inside the entry XSD
+const result = await validate(xmlText, {
+  entry: mainXsdText,
+  imports: {
+    'types.xsd':  typesXsdText,
+    'common.xsd': commonXsdText,
+  },
+});
+
+// From file paths — same shape, values are paths instead of content
+const result = await validateFiles('./document.xml', {
+  entry: './schemas/main.xsd',
+  imports: {
+    'types.xsd':  './schemas/types.xsd',
+    'common.xsd': './schemas/common.xsd',
+  },
+});
+```
+
 ---
 
 ## API
 
 ### `validate(xml, xsd)`
 
-Accepts strings, `Buffer`s, or `Blob`/`File` objects — mix and match freely.
+Accepts strings, `Buffer`s, or `Blob`/`File` objects. For multi-file schemas, pass a `SchemaBundle`.
 
 ```typescript
-type XmlInput = string | Buffer | Blob | File;
+type XmlInput  = string | Buffer | Blob | File;
 
-function validate(xml: XmlInput, xsd: XmlInput): Promise<ValidationResult>
+interface SchemaBundle {
+  entry:    XmlInput;                    // root XSD content
+  imports?: Record<string, XmlInput>;   // schemaLocation → XSD content
+}
+
+type XsdInput = XmlInput | SchemaBundle;
+
+function validate(xml: XmlInput, xsd: XsdInput): Promise<ValidationResult>
 ```
 
-| Parameter | Type       | Description              |
-|-----------|------------|--------------------------|
-| `xml`     | `XmlInput` | XML document to validate |
-| `xsd`     | `XmlInput` | XSD schema to validate against |
+### `validateFiles(xmlPath, xsd)`
 
-### `validateFiles(xmlPath, xsdPath)`
-
-Convenience wrapper for Node.js file paths — reads both files then validates.
+Convenience wrapper for Node.js file paths.
 
 ```typescript
-function validateFiles(xmlPath: string, xsdPath: string): Promise<ValidationResult>
+function validateFiles(
+  xmlPath: string,
+  xsd: string | { entry: string; imports?: Record<string, string> }
+): Promise<ValidationResult>
 ```
-
-| Parameter  | Type     | Description           |
-|------------|----------|-----------------------|
-| `xmlPath`  | `string` | Path to XML file      |
-| `xsdPath`  | `string` | Path to XSD file      |
 
 ### `ValidationResult`
 

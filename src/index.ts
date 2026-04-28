@@ -15,8 +15,17 @@ export interface ValidationResult {
   schemaErrors: Diagnostic[];
 }
 
-// Accepted input types for validate()
+// A bundle of schemas for xs:import / xs:include support.
+// `entry` is the root XSD content.
+// `imports` maps relative filenames to their XSD content —
+// matching the schemaLocation values used inside the entry schema.
+export interface SchemaBundle {
+  entry:    XmlInput;
+  imports?: Record<string, XmlInput>;
+}
+
 export type XmlInput = string | Buffer | Blob | File;
+export type XsdInput = XmlInput | SchemaBundle;
 
 let _module: any = null;
 
@@ -28,29 +37,64 @@ async function getModule(): Promise<any> {
 async function toText(input: XmlInput): Promise<string> {
   if (typeof input === "string") return input;
   if (Buffer.isBuffer(input))   return input.toString("utf8");
-  // Blob / File (browser or Node 20+)
   if (typeof Blob !== "undefined" && input instanceof Blob) return input.text();
   throw new TypeError("Unsupported input type");
 }
 
-export async function validate(
-  xml: XmlInput,
-  xsd: XmlInput
-): Promise<ValidationResult> {
-  const [xmlText, xsdText] = await Promise.all([toText(xml), toText(xsd)]);
-  const mod = await getModule();
-  return mod.validate(xmlText, xsdText);
+function isSchemaBundle(xsd: XsdInput): xsd is SchemaBundle {
+  return typeof xsd === "object" && !Buffer.isBuffer(xsd) && "entry" in xsd;
 }
 
-// Convenience wrapper for file paths (Node.js)
+export async function validate(
+  xml: XmlInput,
+  xsd: XsdInput
+): Promise<ValidationResult> {
+  const xmlText = await toText(xml);
+  const mod     = await getModule();
+
+  if (isSchemaBundle(xsd)) {
+    const entryText = await toText(xsd.entry);
+    const imports: Record<string, string> = {};
+    if (xsd.imports) {
+      await Promise.all(
+        Object.entries(xsd.imports).map(async ([key, val]) => {
+          imports[key] = await toText(val);
+        })
+      );
+    }
+    return mod.validate(xmlText, { entry: entryText, imports });
+  }
+
+  return mod.validate(xmlText, await toText(xsd));
+}
+
+// Convenience wrapper for Node.js file paths.
+// xsd can be a single path or a bundle where each value is a file path.
 export async function validateFiles(
   xmlPath: string,
-  xsdPath: string
+  xsd: string | { entry: string; imports?: Record<string, string> }
 ): Promise<ValidationResult> {
-  const [xml, xsd] = await Promise.all([
+  if (typeof xsd === "string") {
+    const [xml, xsdText] = await Promise.all([
+      readFile(xmlPath, "utf8"),
+      readFile(xsd, "utf8"),
+    ]);
+    const mod = await getModule();
+    return mod.validate(xml, xsdText);
+  }
+
+  const [xml, entryText] = await Promise.all([
     readFile(xmlPath, "utf8"),
-    readFile(xsdPath, "utf8"),
+    readFile(xsd.entry, "utf8"),
   ]);
+  const imports: Record<string, string> = {};
+  if (xsd.imports) {
+    await Promise.all(
+      Object.entries(xsd.imports).map(async ([key, filePath]) => {
+        imports[key] = await readFile(filePath, "utf8");
+      })
+    );
+  }
   const mod = await getModule();
-  return mod.validate(xml, xsd);
+  return mod.validate(xml, { entry: entryText, imports });
 }

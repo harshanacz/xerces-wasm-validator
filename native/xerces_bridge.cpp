@@ -1,5 +1,6 @@
 #include <string>
 #include <vector>
+#include <map>
 #include <xercesc/util/PlatformUtils.hpp>
 #include <xercesc/parsers/SAXParser.hpp>
 #include <xercesc/framework/MemBufInputSource.hpp>
@@ -62,34 +63,47 @@ private:
     }
 };
 
-// ── Entity resolver that serves XSD from memory ───────────────────────────────
-// When Xerces tries to open the schema URI, we intercept and return
-// the XSD text directly from memory instead of trying to open a file.
+// ── Entity resolver that serves any number of XSDs from memory ───────────────
+// Schemas are registered by their full URI (e.g. "memory:///main.xsd").
+// Xerces cannot resolve relative URIs against unknown schemes, so when the
+// entry schema has xs:include schemaLocation='types.xsd', Xerces calls
+// resolveEntity with the bare filename "types.xsd" rather than the resolved
+// "memory:///types.xsd".  The basename fallback handles both cases.
 class MemoryEntityResolver : public EntityResolver {
-public:
-    const std::string& xsdText;
-    const char*        schemaId;
+    std::map<std::string, std::string> _byUri;   // full URI → content
+    std::map<std::string, std::string> _byName;  // bare filename → content
 
-    MemoryEntityResolver(const std::string& xsd, const char* id)
-        : xsdText(xsd), schemaId(id) {}
+    static std::string basename(const std::string& uri) {
+        size_t slash = uri.rfind('/');
+        return slash == std::string::npos ? uri : uri.substr(slash + 1);
+    }
+
+    InputSource* serve(const std::string& content, const std::string& sid) {
+        return new MemBufInputSource(
+            (const XMLByte*)content.c_str(), content.size(), sid.c_str());
+    }
+
+public:
+    void add(const std::string& uri, const std::string& content) {
+        _byUri[uri] = content;
+        _byName[basename(uri)] = content;
+    }
 
     InputSource* resolveEntity(
         const XMLCh* const /* publicId */,
         const XMLCh* const systemId) override
     {
-        // Check if this is our schema being requested
-        char* sysIdStr = XMLString::transcode(systemId);
-        std::string sid(sysIdStr);
-        XMLString::release(&sysIdStr);
+        char* raw = XMLString::transcode(systemId);
+        std::string sid(raw);
+        XMLString::release(&raw);
 
-        if (sid == schemaId) {
-            // Serve XSD from memory
-            return new MemBufInputSource(
-                (const XMLByte*)xsdText.c_str(),
-                xsdText.size(),
-                schemaId);
-        }
-        // Let Xerces handle anything else normally
+        auto it = _byUri.find(sid);
+        if (it != _byUri.end()) return serve(it->second, sid);
+
+        // Xerces falls back to bare filename when the URI scheme is unknown
+        auto it2 = _byName.find(basename(sid));
+        if (it2 != _byName.end()) return serve(it2->second, sid);
+
         return nullptr;
     }
 };
@@ -112,16 +126,19 @@ static std::vector<DiagnosticEntry> runSyntaxPass(const std::string& xmlText) {
     return handler.entries;
 }
 
-// Pass 2 — schema validation with memory entity resolver
+// Pass 2 — schema validation
+// schemaMap: full URI → XSD content (may contain many entries for xs:import/xs:include)
+// entryUri:  the URI set on the parser as the starting schema
 static std::vector<DiagnosticEntry> runSchemaPass(
     const std::string& xmlText,
-    const std::string& xsdText)
+    const std::map<std::string, std::string>& schemaMap,
+    const std::string& entryUri)
 {
-    const char* schemaId = "urn:xerces-wasm:schema";
-
     SAXParser parser;
     CollectingErrorHandler handler;
-    MemoryEntityResolver resolver(xsdText, schemaId);
+    MemoryEntityResolver resolver;
+    for (const auto& kv : schemaMap)
+        resolver.add(kv.first, kv.second);
 
     parser.setErrorHandler(&handler);
     parser.setEntityResolver(&resolver);
@@ -129,10 +146,7 @@ static std::vector<DiagnosticEntry> runSchemaPass(
     parser.setValidationScheme(SAXParser::Val_Always);
     parser.setDoSchema(true);
     parser.setValidationSchemaFullChecking(true);
-
-    // Point parser at our in-memory schema URI
-    // Entity resolver will intercept and serve it from memory
-    parser.setExternalNoNamespaceSchemaLocation(schemaId);
+    parser.setExternalNoNamespaceSchemaLocation(entryUri.c_str());
 
     try {
         MemBufInputSource xmlSrc(
@@ -144,8 +158,43 @@ static std::vector<DiagnosticEntry> runSchemaPass(
     return handler.entries;
 }
 
-emscripten::val validate(const std::string& xmlText, const std::string& xsdText) {
+// xsdParam is either:
+//   • a string  → single schema (original behaviour)
+//   • an object → { entry: string, imports?: { [filename]: string } }
+emscripten::val validate(const std::string& xmlText, emscripten::val xsdParam) {
     ensureInit();
+
+    const std::string entryUri = "memory:///main.xsd";
+    std::map<std::string, std::string> schemaMap;
+    bool hasSchema = false;
+
+    // Distinguish string vs bundle object by checking for the "entry" property.
+    // A JS string primitive has no "entry" property, so it comes back undefined.
+    emscripten::val entryProp = xsdParam["entry"];
+    if (entryProp.isUndefined() || entryProp.isNull()) {
+        // Single-schema string path
+        std::string xsdText = xsdParam.as<std::string>();
+        if (!xsdText.empty()) {
+            schemaMap[entryUri] = xsdText;
+            hasSchema = true;
+        }
+    } else {
+        // Multi-schema bundle: { entry: string, imports?: Record<string,string> }
+        schemaMap[entryUri] = entryProp.as<std::string>();
+        hasSchema = true;
+
+        emscripten::val imports = xsdParam["imports"];
+        if (!imports.isUndefined() && !imports.isNull()) {
+            emscripten::val keys =
+                emscripten::val::global("Object").call<emscripten::val>("keys", imports);
+            int len = keys["length"].as<int>();
+            for (int i = 0; i < len; i++) {
+                std::string key     = keys[i].as<std::string>();
+                std::string content = imports[key].as<std::string>();
+                schemaMap["memory:///" + key] = content;
+            }
+        }
+    }
 
     auto result    = emscripten::val::object();
     auto parseArr  = emscripten::val::array();
@@ -160,8 +209,8 @@ emscripten::val validate(const std::string& xmlText, const std::string& xsdText)
 
     // Pass 2 — schema validation
     std::vector<DiagnosticEntry> schemaErrors;
-    if (!xsdText.empty()) {
-        auto pass2 = runSchemaPass(xmlText, xsdText);
+    if (hasSchema) {
+        auto pass2 = runSchemaPass(xmlText, schemaMap, entryUri);
         for (auto& e : pass2)
             if (e.severity == "error" || e.severity == "warning")
                 schemaErrors.push_back(e);

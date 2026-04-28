@@ -1,4 +1,6 @@
+<?xml version='1.0'?>
 <person>
-  <name>John Smith</name>
+  <name>John</name>
   <age>30</age>
+  <email>john@example.com</email>
 </person>

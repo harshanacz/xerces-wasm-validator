@@ -125,4 +125,20 @@ describe("validateFiles() with multi-schema bundle", () => {
     ).rejects.toThrow();
   });
 
+  test("multi-level nested schema works propertly", async () => {
+    const deepMain = path.join(FIXTURES, "deep-main.xsd");
+    const midTypes = path.join(FIXTURES, "mid-types.xsd");
+    const deepTypes = path.join(FIXTURES, "deep-types.xsd");
+    
+    // valid.xml matches deep-main.xsd elements as well
+    const result = await validateFiles(xmlValid, {
+      entry: deepMain,
+      imports: { 
+        "mid-types.xsd": midTypes,
+        "deep-types.xsd": deepTypes
+      },
+    });
+    expect(result.valid).toBe(true);
+  });
+
 });

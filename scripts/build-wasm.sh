@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🔧 Setting up Emscripten..."
+echo "Setting up Emscripten..."
 source ~/Projects/WASM/emsdk/emsdk_env.sh
 
 XERCES_SRC="$HOME/Projects/WASM/xerces-c/src"
@@ -12,7 +12,7 @@ OUT_DIR="$PWD/wasm"
 
 mkdir -p $OUT_DIR
 
-echo "🔨 Compiling xerces_bridge.cpp to WASM..."
+echo "Compiling xerces_bridge.cpp to WASM..."
 em++ $BRIDGE \
   -I $XERCES_SRC \
   -I $XERCES_BUILD_SRC \
@@ -27,4 +27,4 @@ em++ $BRIDGE \
   -O2 \
   -o $OUT_DIR/xerces_validator.js
 
-echo "✅ Done → wasm/xerces_validator.js + wasm/xerces_validator.wasm"
+echo "Done → wasm/xerces_validator.js + wasm/xerces_validator.wasm"

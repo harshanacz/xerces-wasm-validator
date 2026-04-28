@@ -1,0 +1,30 @@
+{
+  "name": "xerces-wasm",
+  "version": "1.0.0",
+  "description": "xerces WASM# xerces-wasm",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harshanacz/xerces-wasm.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/harshanacz/xerces-wasm/issues"
+  },
+  "homepage": "https://github.com/harshanacz/xerces-wasm#readme",
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.6.0",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.9",
+    "typescript": "^6.0.3"
+  }
+}

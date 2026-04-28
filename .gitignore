@@ -1,0 +1,5 @@
+node_modules/
+dist/
+wasm/
+.DS_Store
+EOF

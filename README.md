@@ -3,29 +3,45 @@
 <div align="center">
 
 [![npm version](https://img.shields.io/npm/v/xerces-wasm?style=flat-square&color=cb3837)](https://www.npmjs.com/package/xerces-wasm)
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-ready-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![WebAssembly](https://img.shields.io/badge/Powered%20by-WebAssembly-654ff0?style=flat-square&logo=webassembly&logoColor=white)](https://webassembly.org/)
 
 **Full XML + XSD schema validation for Node.js and browsers.**  
-Powered by Apache Xerces-C compiled to WebAssembly — no native builds, no Java, no Python.
+Powered by Apache Xerces-C compiled to WebAssembly.
+
+[Documentation site](./docs/) · [Example project](./example-project/) · [Issues](https://github.com/harshanacz/xerces-wasm/issues)
 
 </div>
 
 ---
 
+## Current Package Data
+
+Verified against `package.json` and the npm registry on **2026-05-04**.
+
+| Field | Value |
+| --- | --- |
+| Package | `xerces-wasm` |
+| Version | `0.2.0` |
+| Description | XML + XSD validation via Xerces-C compiled to WebAssembly |
+| Main entry | `dist/index.js` |
+| Type declarations | `dist/index.d.ts` |
+| Runtime npm dependencies | `0` |
+| License | `MIT` |
+| Repository | `https://github.com/harshanacz/xerces-wasm` |
+| Published homepage | `https://github.com/harshanacz/xerces-wasm#readme` |
+
 ## Why xerces-wasm?
 
-No reliable XSD validator exists in the JS ecosystem. `xerces-wasm` brings the gold-standard C++ XML parser to JavaScript via WebAssembly.
+JavaScript projects often need real XSD validation without installing native parsers on every machine. `xerces-wasm` wraps the Apache Xerces-C validation engine behind a small TypeScript API and ships the parser as WebAssembly.
 
-- **Battle-tested core** — Apache Xerces-C is used in production by NASA, Apache, and IBM
-- **Zero native dependencies** — ships as a `.wasm` binary, works anywhere JS runs
-- **Full XSD 1.0 support** — including `xs:import` and `xs:include` across multiple files
-- **Namespaced schema support** — works with WSO2, UBL, and any schema that declares `targetNamespace`
-- **Structured error output** — parse errors and schema violations with line/column info
-
----
+- **XML + XSD validation** with separate syntax and schema diagnostics
+- **WebAssembly runtime** with no native install step for consumers
+- **Schema bundles** for `xs:include` and `xs:import`
+- **Namespace-aware validation** with auto-detected or explicit target namespaces
+- **Multiple input types** including strings, Buffers, Blobs, Files, and Node.js file paths
+- **Structured errors** with message, severity, line, and column
 
 ## Installation
 
@@ -41,104 +57,96 @@ yarn add xerces-wasm
 pnpm add xerces-wasm
 ```
 
----
-
 ## Quick Start
 
-**From strings:**
+### Validate strings
 
 ```typescript
-import { validate } from 'xerces-wasm';
+import { validate } from "xerces-wasm";
 
 const result = await validate(xmlText, xsdText);
 
 if (result.valid) {
-  console.log('Valid!');
+  console.log("Valid XML");
 } else {
-  result.parseErrors.forEach(e =>
-    console.error(`[SYNTAX] Line ${e.line}:${e.column} — ${e.message}`)
-  );
-  result.schemaErrors.forEach(e =>
-    console.error(`[SCHEMA] Line ${e.line}:${e.column} — ${e.message}`)
-  );
+  for (const error of result.parseErrors) {
+    console.error(`[SYNTAX] ${error.line}:${error.column} ${error.message}`);
+  }
+
+  for (const error of result.schemaErrors) {
+    console.error(`[SCHEMA] ${error.line}:${error.column} ${error.message}`);
+  }
 }
 ```
 
-**From files (Node.js):**
+### Validate files in Node.js
 
 ```typescript
-import { validateFiles } from 'xerces-wasm';
+import { validateFiles } from "xerces-wasm";
 
-const result = await validateFiles('./document.xml', './schema.xsd');
+const result = await validateFiles("./document.xml", "./schema.xsd");
 ```
 
-**From Buffers or Blobs:**
+### Validate Buffers, Blobs, or Files
 
 ```typescript
-import { validate } from 'xerces-wasm';
-import { readFile } from 'fs/promises';
+import { readFile } from "fs/promises";
+import { validate } from "xerces-wasm";
 
-const xml = await readFile('./document.xml');   // Buffer
-const xsd = await readFile('./schema.xsd');     // Buffer
+const xml = await readFile("./document.xml");
+const xsd = await readFile("./schema.xsd");
+
 const result = await validate(xml, xsd);
 ```
 
-**Multi-file schemas (`xs:import` / `xs:include`):**
+### Validate multi-file schemas
+
+Pass imports keyed by the same `schemaLocation` values used inside the entry XSD.
 
 ```typescript
-import { validate, validateFiles } from 'xerces-wasm';
+import { validate, validateFiles } from "xerces-wasm";
 
-// From strings — pass imports keyed by the schemaLocation value used inside the entry XSD
-const result = await validate(xmlText, {
+const fromStrings = await validate(xmlText, {
   entry: mainXsdText,
   imports: {
-    'types.xsd':  typesXsdText,
-    'common.xsd': commonXsdText,
-  },
+    "types.xsd": typesXsdText,
+    "common.xsd": commonXsdText
+  }
 });
 
-// From file paths — same shape, values are paths instead of content
-const result = await validateFiles('./document.xml', {
-  entry: './schemas/main.xsd',
+const fromFiles = await validateFiles("./document.xml", {
+  entry: "./schemas/main.xsd",
   imports: {
-    'types.xsd':  './schemas/types.xsd',
-    'common.xsd': './schemas/common.xsd',
-  },
+    "types.xsd": "./schemas/types.xsd",
+    "common.xsd": "./schemas/common.xsd"
+  }
 });
 ```
 
-**Namespaced schemas (WSO2, UBL, ISO 20022, …):**
+### Override the target namespace
 
-The namespace is normally auto-detected from the `targetNamespace` attribute in your XSD. Pass it explicitly when the XSD is served without that attribute or when you need to override it:
+When omitted, `targetNamespace` is read from the entry XSD. Pass it explicitly when a schema is served without that attribute or a caller needs to override it.
 
 ```typescript
-import { validate } from 'xerces-wasm';
+import { validate } from "xerces-wasm";
 
-// Auto-detect (default) — works when targetNamespace is declared in the XSD
-const result = await validate(xmlText, xsdText);
-
-// Explicit namespace override — required for WSO2 / externally-hosted schemas
 const result = await validate(
   xmlText,
   xsdText,
-  'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2'
+  "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
 );
 ```
-
----
 
 ## API
 
 ### `validate(xml, xsd, targetNamespace?)`
 
-Accepts strings, `Buffer`s, or `Blob`/`File` objects. For multi-file schemas, pass a `SchemaBundle`.
-
 ```typescript
-type XmlInput  = string | Buffer | Blob | File;
+type XmlInput = string | Buffer | Blob | File;
 
 interface SchemaBundle {
-  entry:    XmlInput;                    // root XSD content
-  imports?: Record<string, XmlInput>;   // schemaLocation → XSD content
+  entry: XmlInput;
+  imports?: Record<string, XmlInput>;
 }
 
 type XsdInput = XmlInput | SchemaBundle;
@@ -146,69 +154,58 @@ type XsdInput = XmlInput | SchemaBundle;
 function validate(
   xml: XmlInput,
   xsd: XsdInput,
-  targetNamespace?: string   // explicit namespace URI; auto-detected from XSD when omitted
-): Promise<ValidationResult>
+  targetNamespace?: string
+): Promise<ValidationResult>;
 ```
 
-`targetNamespace` is optional. When omitted, the namespace is read from the `targetNamespace` attribute of the entry XSD. Pass it explicitly for schemas that declare no namespace in their source but must be validated as namespaced (common with WSO2 and externally-served schemas).
-
 ### `validateFiles(xmlPath, xsd)`
-
-Convenience wrapper for Node.js file paths.
 
 ```typescript
 function validateFiles(
   xmlPath: string,
   xsd: string | { entry: string; imports?: Record<string, string> }
-): Promise<ValidationResult>
+): Promise<ValidationResult>;
 ```
 
 ### `ValidationResult`
 
 ```typescript
 interface ValidationResult {
-  valid:        boolean;
-  parseErrors:  Diagnostic[];   // XML syntax errors
-  schemaErrors: Diagnostic[];   // XSD constraint violations
+  valid: boolean;
+  parseErrors: Diagnostic[];
+  schemaErrors: Diagnostic[];
 }
 
 interface Diagnostic {
-  message:  string;
-  line:     number;
-  column:   number;
-  severity: 'warning' | 'error' | 'fatal';
+  message: string;
+  line: number;
+  column: number;
+  severity: "warning" | "error" | "fatal";
 }
 ```
-
----
 
 ## Error Behavior
 
 | Scenario | `parseErrors` | `schemaErrors` |
-|---|---|---|
+| --- | --- | --- |
 | Valid XML + valid schema | `[]` | `[]` |
-| Schema violations only | `[]` | all violations |
-| XML syntax error | fatal error | `[]` |
-| Schema error before syntax error | fatal error | errors up to crash point |
+| Schema violations only | `[]` | One or more schema diagnostics |
+| XML syntax error | One or more fatal syntax diagnostics | May include fatal diagnostics reported by the native validator |
+| Schema error before syntax error | Fatal syntax diagnostics | Diagnostics collected before the parser stopped |
 
----
+## Development
 
-## Use Cases
+```bash
+npm install
+npm test
+npm run build
+```
 
-| Industry | Standard | Example |
-|----------|----------|---------|
-| Healthcare | HL7 / FHIR | Clinical document validation |
-| Finance | SWIFT / ISO 20022 | Financial message validation |
-| Developer tools | Any XSD | VS Code XML language server |
-| DevOps | Custom schemas | CI/CD pipeline gate |
-
----
+The static documentation website lives in `docs/` and can be opened directly from `docs/index.html` or served by GitHub Pages.
 
 ## Standalone Project Example
 
-We've provided a complete standalone use-case in the `example-project/` directory demonstrating how to install and use `xerces-wasm` as an npm dependency inside a real-world project (validating an XML Invoice).
-
-To run the usecase locally:
+The `example-project/` directory contains a complete invoice validation example that consumes `xerces-wasm` as an npm dependency.
 
 ```bash
 cd example-project
@@ -216,8 +213,16 @@ npm install
 npm start
 ```
 
----
+## Use Cases
+
+| Area | Example |
+| --- | --- |
+| Healthcare | HL7 / FHIR document validation |
+| Finance | SWIFT and ISO 20022 message validation |
+| Developer tools | XML language servers, editors, and CI diagnostics |
+| DevOps | Schema validation gates in build pipelines |
+| Integration platforms | Versioned connector schema validation |
 
 ## License
 
-[MIT](./LICENSE) © Harshana Amuwatte
+[MIT](./LICENSE) 

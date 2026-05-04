@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<invoice id="INV1002">
+  <billingTo>Acme Ltd</billingTo>
+  <date>2026-05-04</date>
+  <currency>usd</currency>
+  <items>
+    <item sku="bad-sku">
+      <description></description>
+      <quantity>0</quantity>
+      <unitPrice>-12.25</unitPrice>
+    </item>
+  </items>
+  <total>0.00</total>
+</invoice>

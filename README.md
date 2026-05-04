@@ -213,6 +213,15 @@ npm install
 npm start
 ```
 
+The `multi-schema-example-project/` directory demonstrates `xs:include` with an
+entry schema plus multiple included schema files.
+
+```bash
+cd multi-schema-example-project
+npm install
+npm start
+```
+
 ## Use Cases
 
 | Area | Example |

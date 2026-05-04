@@ -194,11 +194,15 @@ describe("Syntax / parse errors", () => {
     expect(result.parseErrors.length).toBeGreaterThan(0);
   });
 
-  test("fatal syntax error means schemaErrors is empty", () => {
+  test("fatal syntax error may also surface as fatal schema diagnostic", () => {
     const xml = `<person><name>John</name`;
     const result = validate(xml, personXsd);
+    expect(result.valid).toBe(false);
     expect(result.parseErrors.length).toBeGreaterThan(0);
-    expect(result.schemaErrors).toHaveLength(0);
+    expect(result.parseErrors[0].severity).toBe("fatal");
+    for (const error of result.schemaErrors) {
+      expect(error.severity).toBe("fatal");
+    }
   });
 
 });

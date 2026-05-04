@@ -7,6 +7,6 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "xerces-wasm": "^0.2.0"
+    "xerces-wasm": "0.3.0"
   }
 }

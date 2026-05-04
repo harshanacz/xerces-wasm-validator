@@ -3,4 +3,5 @@ dist/
 wasm/
 .DS_Store
 EOF
+/.claude
 /.idea

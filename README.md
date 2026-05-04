@@ -23,7 +23,7 @@ Verified against `package.json` and the npm registry on **2026-05-04**.
 | Field | Value |
 | --- | --- |
 | Package | `xerces-wasm` |
-| Version | `0.2.0` |
+| Version | `0.3.0` |
 | Description | XML + XSD validation via Xerces-C compiled to WebAssembly |
 | Main entry | `dist/index.js` |
 | Type declarations | `dist/index.d.ts` |
@@ -225,4 +225,8 @@ npm start
 
 ## License
 
-[MIT](./LICENSE) 
+`xerces-wasm` is released under the [MIT License](./LICENSE).
+
+This package includes Apache Xerces-C compiled to WebAssembly. Xerces-C is
+licensed under the Apache License 2.0, and its license and notice are included
+in the npm package at `native/xerces-c/LICENSE` and `native/xerces-c/NOTICE`.

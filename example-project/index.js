@@ -8,9 +8,9 @@ async function main() {
   const dataDir = path.join(__dirname, "data");
 
   console.log("🧾 Validating Invoices...");
-  console.log("=========================\\n");
+  console.log("=========================\n");
 
-  const files = await fs.readdir(dataDir);
+  const files = (await fs.readdir(dataDir)).sort();
 
   for (const file of files) {
     if (!file.endsWith('.xml')) continue;

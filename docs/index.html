@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Documentation for xerces-wasm, an XML and XSD validator powered by Apache Xerces-C compiled to WebAssembly."
+    />
+    <title>xerces-wasm Documentation</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#overview" aria-label="xerces-wasm documentation">
+        <span class="brand-mark" aria-hidden="true">xw</span>
+        <span>xerces-wasm</span>
+      </a>
+      <nav class="topnav" aria-label="Primary navigation">
+        <a href="#quick-start">Quick start</a>
+        <a href="#api">API</a>
+        <a href="#diagnostics">Diagnostics</a>
+        <a href="https://github.com/harshanacz/xerces-wasm">GitHub</a>
+      </nav>
+    </header>
+
+    <div class="docs-shell">
+      <aside class="sidebar" aria-label="Documentation sections">
+        <nav>
+          <a href="#overview">Overview</a>
+          <a href="#install">Installation</a>
+          <a href="#quick-start">Quick start</a>
+          <a href="#inputs">Input types</a>
+          <a href="#schemas">Schema bundles</a>
+          <a href="#results">Result examples</a>
+          <a href="#api">API reference</a>
+          <a href="#diagnostics">Diagnostics</a>
+          <a href="#runtime">Runtime notes</a>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <section id="overview" class="hero section">
+          <div class="version-row">
+            <span>Version 0.2.0</span>
+            <span>MIT</span>
+            <span>TypeScript</span>
+            <span>WebAssembly</span>
+          </div>
+          <h1>XML + XSD validation for JavaScript, backed by Apache Xerces-C.</h1>
+          <p class="lead">
+            <code>xerces-wasm</code> gives Node.js and browser projects a small
+            TypeScript API for validating XML against XSD schemas, including
+            imported and included schema files.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#quick-start">Start validating</a>
+            <a class="button secondary" href="https://www.npmjs.com/package/xerces-wasm">View on npm</a>
+          </div>
+        </section>
+
+        <section class="fact-grid" aria-label="Package facts">
+          <article>
+            <span>Engine</span>
+            <strong>Apache Xerces-C</strong>
+          </article>
+          <article>
+            <span>Runtime dependency count</span>
+            <strong>0</strong>
+          </article>
+          <article>
+            <span>Published package</span>
+            <strong>xerces-wasm</strong>
+          </article>
+          <article>
+            <span>Primary output</span>
+            <strong>ValidationResult</strong>
+          </article>
+        </section>
+
+        <section id="install" class="section">
+          <div class="section-heading">
+            <p class="kicker">Installation</p>
+            <h2>Install from npm.</h2>
+          </div>
+          <div class="command-grid">
+            <div class="command">
+              <span>npm</span>
+              <pre><code>npm install xerces-wasm</code></pre>
+            </div>
+            <div class="command">
+              <span>yarn</span>
+              <pre><code>yarn add xerces-wasm</code></pre>
+            </div>
+            <div class="command">
+              <span>pnpm</span>
+              <pre><code>pnpm add xerces-wasm</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <section id="quick-start" class="section">
+          <div class="section-heading">
+            <p class="kicker">Quick Start</p>
+            <h2>Validate XML from strings or files.</h2>
+            <p>
+              Import <code>validate</code> for in-memory content or
+              <code>validateFiles</code> when a Node.js workflow already has
+              paths on disk.
+            </p>
+          </div>
+          <div class="two-column">
+            <article class="doc-card">
+              <h3>From strings</h3>
+              <pre><code>import { validate } from "xerces-wasm";
+
+const result = await validate(xmlText, xsdText);
+
+if (!result.valid) {
+  console.log(result.schemaErrors);
+}</code></pre>
+            </article>
+            <article class="doc-card">
+              <h3>From files</h3>
+              <pre><code>import { validateFiles } from "xerces-wasm";
+
+const result = await validateFiles(
+  "./document.xml",
+  "./schema.xsd"
+);</code></pre>
+            </article>
+          </div>
+        </section>
+
+        <section id="inputs" class="section">
+          <div class="section-heading">
+            <p class="kicker">Input Types</p>
+            <h2>Use the data shape your app already has.</h2>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Input</th>
+                  <th>Supported by</th>
+                  <th>Typical use</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>string</code></td>
+                  <td><code>validate</code></td>
+                  <td>Editor buffers, request bodies, generated XML</td>
+                </tr>
+                <tr>
+                  <td><code>Buffer</code></td>
+                  <td><code>validate</code></td>
+                  <td>Node.js file reads and server pipelines</td>
+                </tr>
+                <tr>
+                  <td><code>Blob</code> / <code>File</code></td>
+                  <td><code>validate</code></td>
+                  <td>Browser upload flows</td>
+                </tr>
+                <tr>
+                  <td>File path</td>
+                  <td><code>validateFiles</code></td>
+                  <td>CLI tools and build scripts</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="schemas" class="section">
+          <div class="section-heading">
+            <p class="kicker">Schema Bundles</p>
+            <h2>Resolve <code>xs:include</code> and <code>xs:import</code> explicitly.</h2>
+            <p>
+              Provide a root schema as <code>entry</code> and map each imported
+              file by the exact <code>schemaLocation</code> value used inside
+              the schema.
+            </p>
+          </div>
+          <article class="doc-card wide">
+            <pre><code>const result = await validate(xmlText, {
+  entry: mainXsdText,
+  imports: {
+    "types.xsd": typesXsdText,
+    "common.xsd": commonXsdText
+  }
+});</code></pre>
+          </article>
+        </section>
+
+        <section id="results" class="section">
+          <div class="section-heading">
+            <p class="kicker">Result Examples</p>
+            <h2>Structured diagnostics you can route into tools.</h2>
+            <p>
+              Switch between common outcomes and see the result object your code
+              can handle after validation.
+            </p>
+          </div>
+
+          <div class="demo-shell">
+            <div class="demo-toolbar" role="tablist" aria-label="Validation examples">
+              <button class="demo-tab active" type="button" data-example="valid" role="tab">
+                Valid XML
+              </button>
+              <button class="demo-tab" type="button" data-example="schema" role="tab">
+                Schema error
+              </button>
+              <button class="demo-tab" type="button" data-example="bundle" role="tab">
+                Schema bundle
+              </button>
+            </div>
+            <div class="demo-grid">
+              <pre class="sample-code" aria-label="JavaScript example"><code id="sampleCode"></code></pre>
+              <div class="result-panel" aria-live="polite">
+                <div class="result-status" id="resultStatus"></div>
+                <pre><code id="resultJson"></code></pre>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="api" class="section">
+          <div class="section-heading">
+            <p class="kicker">API Reference</p>
+            <h2>Two functions and one result shape.</h2>
+          </div>
+
+          <div class="api-stack">
+            <article class="api-item">
+              <h3>validate(xml, xsd, targetNamespace?)</h3>
+              <p>
+                Validates in-memory XML against a single schema or a
+                SchemaBundle. <code>targetNamespace</code> is optional and can
+                override the namespace detected from the entry XSD.
+              </p>
+              <pre><code>function validate(
+  xml: XmlInput,
+  xsd: XsdInput,
+  targetNamespace?: string
+): Promise&lt;ValidationResult&gt;;</code></pre>
+            </article>
+
+            <article class="api-item">
+              <h3>validateFiles(xmlPath, xsd)</h3>
+              <p>
+                Convenience helper for Node.js file paths. The schema argument
+                can be a single path or a bundle of paths.
+              </p>
+              <pre><code>function validateFiles(
+  xmlPath: string,
+  xsd: string | {
+    entry: string;
+    imports?: Record&lt;string, string&gt;;
+  }
+): Promise&lt;ValidationResult&gt;;</code></pre>
+            </article>
+
+            <article class="api-item">
+              <h3>ValidationResult</h3>
+              <pre><code>interface ValidationResult {
+  valid: boolean;
+  parseErrors: Diagnostic[];
+  schemaErrors: Diagnostic[];
+}
+
+interface Diagnostic {
+  message: string;
+  line: number;
+  column: number;
+  severity: "warning" | "error" | "fatal";
+}</code></pre>
+            </article>
+          </div>
+        </section>
+
+        <section id="diagnostics" class="section">
+          <div class="section-heading">
+            <p class="kicker">Diagnostics</p>
+            <h2>Parse errors and schema errors are separated.</h2>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Scenario</th>
+                  <th><code>parseErrors</code></th>
+                  <th><code>schemaErrors</code></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Valid XML and valid schema</td>
+                  <td><code>[]</code></td>
+                  <td><code>[]</code></td>
+                </tr>
+                <tr>
+                  <td>Schema violations only</td>
+                  <td><code>[]</code></td>
+                  <td>One or more diagnostics</td>
+                </tr>
+                <tr>
+                  <td>XML syntax error</td>
+                  <td>Fatal diagnostics</td>
+                  <td>May include native validator diagnostics</td>
+                </tr>
+                <tr>
+                  <td>Schema error before syntax error</td>
+                  <td>Fatal diagnostics</td>
+                  <td>Diagnostics collected before parsing stopped</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="runtime" class="section">
+          <div class="section-heading">
+            <p class="kicker">Runtime Notes</p>
+            <h2>Where it fits.</h2>
+          </div>
+          <div class="note-grid">
+            <article>
+              <h3>Node.js</h3>
+              <p>
+                Use <code>validateFiles</code> for path-based workflows, or read
+                files as Buffers and pass them to <code>validate</code>.
+              </p>
+            </article>
+            <article>
+              <h3>Browsers</h3>
+              <p>
+                Use <code>validate</code> with strings, Blobs, or Files from
+                upload and editor workflows.
+              </p>
+            </article>
+            <article>
+              <h3>Multi-schema projects</h3>
+              <p>
+                Keep schema bundle keys aligned with the
+                <code>schemaLocation</code> values inside the entry XSD.
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <footer class="footer">
+      <span>xerces-wasm documentation</span>
+      <a href="https://github.com/harshanacz/xerces-wasm/issues">Report an issue</a>
+    </footer>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

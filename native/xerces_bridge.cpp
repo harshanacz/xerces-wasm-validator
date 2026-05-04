@@ -28,6 +28,7 @@ struct DiagnosticEntry {
     int         line;
     int         column;
     std::string severity;
+    std::string systemId;
 };
 
 class CollectingErrorHandler : public ErrorHandler {
@@ -37,15 +38,18 @@ public:
 
     void warning(const SAXParseException& e) override {
         entries.push_back({ transcode(e.getMessage()),
-            (int)e.getLineNumber(), (int)e.getColumnNumber(), "warning" });
+            (int)e.getLineNumber(), (int)e.getColumnNumber(), "warning",
+            transcode(e.getSystemId()) });
     }
     void error(const SAXParseException& e) override {
         entries.push_back({ transcode(e.getMessage()),
-            (int)e.getLineNumber(), (int)e.getColumnNumber(), "error" });
+            (int)e.getLineNumber(), (int)e.getColumnNumber(), "error",
+            transcode(e.getSystemId()) });
     }
     void fatalError(const SAXParseException& e) override {
         entries.push_back({ transcode(e.getMessage()),
-            (int)e.getLineNumber(), (int)e.getColumnNumber(), "fatal" });
+            (int)e.getLineNumber(), (int)e.getColumnNumber(), "fatal",
+            transcode(e.getSystemId()) });
         hasFatal = true;
         throw e;
     }
@@ -63,6 +67,17 @@ private:
     }
 };
 
+static bool endsWith(const std::string& value, const std::string& suffix) {
+    return value.size() >= suffix.size() &&
+        value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+static bool isIgnorableXmlSchemaDtdWarning(const DiagnosticEntry& e) {
+    return e.severity == "warning" &&
+        e.message == "attribute 'xmlns' has already been declared for element 'schema'" &&
+        endsWith(e.systemId, "XMLSchema.dtd");
+}
+
 // ── Entity resolver that serves any number of XSDs from memory ───────────────
 // Schemas are registered by their full URI (e.g. "memory:///main.xsd").
 // Xerces cannot resolve relative URIs against unknown schemes, so when the
@@ -70,8 +85,9 @@ private:
 // resolveEntity with the bare filename "types.xsd" rather than the resolved
 // "memory:///types.xsd".  The basename fallback handles both cases.
 class MemoryEntityResolver : public EntityResolver {
-    std::map<std::string, std::string> _byUri;   // full URI → content
-    std::map<std::string, std::string> _byName;  // bare filename → content
+    std::map<std::string, std::string> _byUri;      // full URI → content
+    std::map<std::string, std::string> _byName;     // bare filename → content
+    std::map<std::string, std::string> _nameToUri;  // bare filename → canonical URI
 
     static std::string basename(const std::string& uri) {
         size_t slash = uri.rfind('/');
@@ -86,7 +102,11 @@ class MemoryEntityResolver : public EntityResolver {
 public:
     void add(const std::string& uri, const std::string& content) {
         _byUri[uri] = content;
-        _byName[basename(uri)] = content;
+        const std::string bname = basename(uri);
+        _byName[bname] = content;
+        // Only record first registration so the canonical URI is stable.
+        if (_nameToUri.find(bname) == _nameToUri.end())
+            _nameToUri[bname] = uri;
     }
 
     InputSource* resolveEntity(
@@ -100,9 +120,15 @@ public:
         auto it = _byUri.find(sid);
         if (it != _byUri.end()) return serve(it->second, sid);
 
-        // Xerces falls back to bare filename when the URI scheme is unknown
-        auto it2 = _byName.find(basename(sid));
-        if (it2 != _byName.end()) return serve(it2->second, sid);
+        // Xerces may pass a bare filename or relative path when the URI scheme
+        // is unknown.  Always serve with the canonical memory:/// URI so Xerces'
+        // schema cache de-duplicates includes properly.
+        const std::string bname = basename(sid);
+        auto it2 = _byName.find(bname);
+        if (it2 != _byName.end()) {
+            const std::string& canonUri = _nameToUri.at(bname);
+            return serve(it2->second, canonUri);
+        }
 
         return nullptr;
     }
@@ -126,13 +152,26 @@ static std::vector<DiagnosticEntry> runSyntaxPass(const std::string& xmlText) {
     return handler.entries;
 }
 
+// Extract targetNamespace value from XSD text (returns "" for no-namespace schemas)
+static std::string extractTargetNamespace(const std::string& xsdText) {
+    const std::string attr = "targetNamespace=\"";
+    size_t pos = xsdText.find(attr);
+    if (pos == std::string::npos) return "";
+    pos += attr.size();
+    size_t end = xsdText.find('"', pos);
+    if (end == std::string::npos) return "";
+    return xsdText.substr(pos, end - pos);
+}
+
 // Pass 2 — schema validation
-// schemaMap: full URI → XSD content (may contain many entries for xs:import/xs:include)
-// entryUri:  the URI set on the parser as the starting schema
+// schemaMap:       full URI → XSD content (may contain many entries for xs:import/xs:include)
+// entryUri:        the URI set on the parser as the starting schema
+// targetNamespace: the targetNamespace of the entry schema ("" for no-namespace schemas)
 static std::vector<DiagnosticEntry> runSchemaPass(
     const std::string& xmlText,
     const std::map<std::string, std::string>& schemaMap,
-    const std::string& entryUri)
+    const std::string& entryUri,
+    const std::string& targetNamespace)
 {
     SAXParser parser;
     CollectingErrorHandler handler;
@@ -145,8 +184,14 @@ static std::vector<DiagnosticEntry> runSchemaPass(
     parser.setDoNamespaces(true);
     parser.setValidationScheme(SAXParser::Val_Always);
     parser.setDoSchema(true);
-    parser.setValidationSchemaFullChecking(true);
-    parser.setExternalNoNamespaceSchemaLocation(entryUri.c_str());
+    parser.setValidationSchemaFullChecking(false);  // disable UPA/restriction checks
+
+    if (targetNamespace.empty()) {
+        parser.setExternalNoNamespaceSchemaLocation(entryUri.c_str());
+    } else {
+        std::string schemaLoc = targetNamespace + " " + entryUri;
+        parser.setExternalSchemaLocation(schemaLoc.c_str());
+    }
 
     try {
         MemBufInputSource xmlSrc(
@@ -161,7 +206,9 @@ static std::vector<DiagnosticEntry> runSchemaPass(
 // xsdParam is either:
 //   • a string  → single schema (original behaviour)
 //   • an object → { entry: string, imports?: { [filename]: string } }
-emscripten::val validate(const std::string& xmlText, emscripten::val xsdParam) {
+// targetNsParam (optional): explicit namespace URI; overrides auto-detection from the XSD.
+//   Pass null/undefined to keep the existing auto-detect behaviour.
+emscripten::val validate(const std::string& xmlText, emscripten::val xsdParam, emscripten::val targetNsParam) {
     ensureInit();
 
     const std::string entryUri = "memory:///main.xsd";
@@ -210,10 +257,16 @@ emscripten::val validate(const std::string& xmlText, emscripten::val xsdParam) {
     // Pass 2 — schema validation
     std::vector<DiagnosticEntry> schemaErrors;
     if (hasSchema) {
-        auto pass2 = runSchemaPass(xmlText, schemaMap, entryUri);
+        std::string targetNs;
+        if (!targetNsParam.isUndefined() && !targetNsParam.isNull()) {
+            targetNs = targetNsParam.as<std::string>();
+        } else {
+            targetNs = extractTargetNamespace(schemaMap.at(entryUri));
+        }
+        auto pass2 = runSchemaPass(xmlText, schemaMap, entryUri, targetNs);
         for (auto& e : pass2)
-            if (e.severity == "error" || e.severity == "warning")
-                schemaErrors.push_back(e);
+            if (!isIgnorableXmlSchemaDtdWarning(e))
+                schemaErrors.push_back(e);  // include fatal: schema-load failures must surface
     }
 
     for (auto& e : parseErrors) {

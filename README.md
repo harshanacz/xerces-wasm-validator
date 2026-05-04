@@ -22,6 +22,7 @@ No reliable XSD validator exists in the JS ecosystem. `xerces-wasm` brings the g
 - **Battle-tested core** — Apache Xerces-C is used in production by NASA, Apache, and IBM
 - **Zero native dependencies** — ships as a `.wasm` binary, works anywhere JS runs
 - **Full XSD 1.0 support** — including `xs:import` and `xs:include` across multiple files
+- **Namespaced schema support** — works with WSO2, UBL, and any schema that declares `targetNamespace`
 - **Structured error output** — parse errors and schema violations with line/column info
 
 ---
@@ -106,11 +107,29 @@ const result = await validateFiles('./document.xml', {
 });
 ```
 
+**Namespaced schemas (WSO2, UBL, ISO 20022, …):**
+
+The namespace is normally auto-detected from the `targetNamespace` attribute in your XSD. Pass it explicitly when the XSD is served without that attribute or when you need to override it:
+
+```typescript
+import { validate } from 'xerces-wasm';
+
+// Auto-detect (default) — works when targetNamespace is declared in the XSD
+const result = await validate(xmlText, xsdText);
+
+// Explicit namespace override — required for WSO2 / externally-hosted schemas
+const result = await validate(
+  xmlText,
+  xsdText,
+  'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2'
+);
+```
+
 ---
 
 ## API
 
-### `validate(xml, xsd)`
+### `validate(xml, xsd, targetNamespace?)`
 
 Accepts strings, `Buffer`s, or `Blob`/`File` objects. For multi-file schemas, pass a `SchemaBundle`.
 
@@ -124,8 +143,14 @@ interface SchemaBundle {
 
 type XsdInput = XmlInput | SchemaBundle;
 
-function validate(xml: XmlInput, xsd: XsdInput): Promise<ValidationResult>
+function validate(
+  xml: XmlInput,
+  xsd: XsdInput,
+  targetNamespace?: string   // explicit namespace URI; auto-detected from XSD when omitted
+): Promise<ValidationResult>
 ```
+
+`targetNamespace` is optional. When omitted, the namespace is read from the `targetNamespace` attribute of the entry XSD. Pass it explicitly for schemas that declare no namespace in their source but must be validated as namespaced (common with WSO2 and externally-served schemas).
 
 ### `validateFiles(xmlPath, xsd)`
 
@@ -176,6 +201,20 @@ interface Diagnostic {
 | Finance | SWIFT / ISO 20022 | Financial message validation |
 | Developer tools | Any XSD | VS Code XML language server |
 | DevOps | Custom schemas | CI/CD pipeline gate |
+
+---
+
+## Standalone Project Example
+
+We've provided a complete standalone use-case in the `example-project/` directory demonstrating how to install and use `xerces-wasm` as an npm dependency inside a real-world project (validating an XML Invoice).
+
+To run the usecase locally:
+
+```bash
+cd example-project
+npm install
+npm start
+```
 
 ---
 

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<invoice id="INV-002">
+  <billingTo></billingTo>
+  <date>2023/10/16</date>
+  <amount>-50.00</amount>
+  <currency>US DOLLAR</currency>
+</invoice>

@@ -47,10 +47,12 @@ function isSchemaBundle(xsd: XsdInput): xsd is SchemaBundle {
 
 export async function validate(
   xml: XmlInput,
-  xsd: XsdInput
+  xsd: XsdInput,
+  targetNamespace?: string
 ): Promise<ValidationResult> {
   const xmlText = await toText(xml);
   const mod     = await getModule();
+  const ns      = targetNamespace ?? null;
 
   if (isSchemaBundle(xsd)) {
     const entryText = await toText(xsd.entry);
@@ -62,10 +64,10 @@ export async function validate(
         })
       );
     }
-    return mod.validate(xmlText, { entry: entryText, imports });
+    return mod.validate(xmlText, { entry: entryText, imports }, ns);
   }
 
-  return mod.validate(xmlText, await toText(xsd));
+  return mod.validate(xmlText, await toText(xsd), ns);
 }
 
 // Convenience wrapper for Node.js file paths.

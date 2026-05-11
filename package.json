@@ -1,6 +1,6 @@
 {
   "name": "xerces-wasm",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "XML + XSD validation via Xerces-C compiled to WebAssembly",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

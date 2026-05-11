@@ -3,15 +3,15 @@ import XercesModule from "../wasm/xerces_validator.js";
 import { readFile } from "fs/promises";
 
 export interface Diagnostic {
-  message:  string;
-  line:     number;
-  column:   number;
+  message: string;
+  line: number;
+  column: number;
   severity: "warning" | "error" | "fatal";
 }
 
 export interface ValidationResult {
-  valid:        boolean;
-  parseErrors:  Diagnostic[];
+  valid: boolean;
+  parseErrors: Diagnostic[];
   schemaErrors: Diagnostic[];
 }
 
@@ -20,7 +20,7 @@ export interface ValidationResult {
 // `imports` maps relative filenames to their XSD content —
 // matching the schemaLocation values used inside the entry schema.
 export interface SchemaBundle {
-  entry:    XmlInput;
+  entry: XmlInput;
   imports?: Record<string, XmlInput>;
 }
 
@@ -30,13 +30,13 @@ export type XsdInput = XmlInput | SchemaBundle;
 let _module: any = null;
 
 async function getModule(): Promise<any> {
-  if (!_module) _module = await XercesModule();
+  if (!_module) _module = await XercesModule(); // load .wasm binary into memory
   return _module;
 }
 
 async function toText(input: XmlInput): Promise<string> {
   if (typeof input === "string") return input;
-  if (Buffer.isBuffer(input))   return input.toString("utf8");
+  if (Buffer.isBuffer(input)) return input.toString("utf8");
   if (typeof Blob !== "undefined" && input instanceof Blob) return input.text();
   throw new TypeError("Unsupported input type");
 }
@@ -51,8 +51,8 @@ export async function validate(
   targetNamespace?: string
 ): Promise<ValidationResult> {
   const xmlText = await toText(xml);
-  const mod     = await getModule();
-  const ns      = targetNamespace ?? null;
+  const mod = await getModule();
+  const ns = targetNamespace ?? null;
 
   if (isSchemaBundle(xsd)) {
     const entryText = await toText(xsd.entry);

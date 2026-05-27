@@ -1,43 +1,13 @@
 {
-  "name": "xerces-wasm",
-  "version": "1.0.0",
-  "description": "XML + XSD validation via Xerces-C compiled to WebAssembly",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist/",
-    "wasm/",
-    "native/xerces-c/LICENSE",
-    "native/xerces-c/NOTICE"
-  ],
-  "directories": {
-    "test": "tests"
-  },
+  "name": "wso2-synapse-validator",
+  "description": "WebAssembly-powered XSD validation engine for the WSO2 MI Language Server",
   "scripts": {
     "build:wasm": "bash scripts/build-wasm.sh",
     "build:ts": "tsc",
     "build": "npm run build:wasm && npm run build:ts",
     "test": "jest"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/harshanacz/xerces-wasm.git"
-  },
-  "keywords": [
-    "xml",
-    "xsd",
-    "validation",
-    "xerces",
-    "wasm",
-    "webassembly",
-    "schema"
-  ],
-  "author": "harshanacz",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/harshanacz/xerces-wasm/issues"
-  },
-  "homepage": "https://github.com/harshanacz/xerces-wasm#readme",
   "devDependencies": {
     "@types/jest": "^29.0.0",
     "@types/node": "^20.0.0",

@@ -1,47 +1,27 @@
 // @ts-ignore
 import XercesModule from "../wasm/xerces_validator.js";
 import { readFile } from "fs/promises";
+import type { XmlInput, XsdInput, ValidationResult } from "./types";
 
-export interface Diagnostic {
-  message: string;
-  line: number;
-  column: number;
-  severity: "warning" | "error" | "fatal";
-}
-
-export interface ValidationResult {
-  valid: boolean;
-  parseErrors: Diagnostic[];
-  schemaErrors: Diagnostic[];
-}
-
-// A bundle of schemas for xs:import / xs:include support.
-// `entry` is the root XSD content.
-// `imports` maps relative filenames to their XSD content —
-// matching the schemaLocation values used inside the entry schema.
-export interface SchemaBundle {
-  entry: XmlInput;
-  imports?: Record<string, XmlInput>;
-}
-
-export type XmlInput = string | Buffer | Blob | File;
-export type XsdInput = XmlInput | SchemaBundle;
+// ── WASM module singleton ─────────────────────────────────────────────────────
 
 let _module: any = null;
 
-async function getModule(): Promise<any> {
-  if (!_module) _module = await XercesModule(); // load .wasm binary into memory
+export async function getModule(): Promise<any> {
+  if (!_module) _module = await XercesModule();
   return _module;
 }
 
-async function toText(input: XmlInput): Promise<string> {
+export async function toText(input: XmlInput): Promise<string> {
   if (typeof input === "string") return input;
   if (Buffer.isBuffer(input)) return input.toString("utf8");
   if (typeof Blob !== "undefined" && input instanceof Blob) return input.text();
   throw new TypeError("Unsupported input type");
 }
 
-function isSchemaBundle(xsd: XsdInput): xsd is SchemaBundle {
+// ── One-off validation ────────────────────────────────────────────────────────
+
+function isSchemaBundle(xsd: XsdInput): xsd is { entry: XmlInput; imports?: Record<string, XmlInput> } {
   return typeof xsd === "object" && !Buffer.isBuffer(xsd) && "entry" in xsd;
 }
 
@@ -50,9 +30,9 @@ export async function validate(
   xsd: XsdInput,
   targetNamespace?: string
 ): Promise<ValidationResult> {
+  const mod     = await getModule();
   const xmlText = await toText(xml);
-  const mod = await getModule();
-  const ns = targetNamespace ?? null;
+  const ns      = targetNamespace ?? null;
 
   if (isSchemaBundle(xsd)) {
     const entryText = await toText(xsd.entry);
@@ -70,18 +50,17 @@ export async function validate(
   return mod.validate(xmlText, await toText(xsd), ns);
 }
 
-// Convenience wrapper for Node.js file paths.
-// xsd can be a single path or a bundle where each value is a file path.
 export async function validateFiles(
   xmlPath: string,
   xsd: string | { entry: string; imports?: Record<string, string> }
 ): Promise<ValidationResult> {
+  const mod = await getModule();
+
   if (typeof xsd === "string") {
     const [xml, xsdText] = await Promise.all([
       readFile(xmlPath, "utf8"),
       readFile(xsd, "utf8"),
     ]);
-    const mod = await getModule();
     return mod.validate(xml, xsdText);
   }
 
@@ -97,6 +76,20 @@ export async function validateFiles(
       })
     );
   }
-  const mod = await getModule();
   return mod.validate(xml, { entry: entryText, imports });
 }
+
+// ── Re-exports ────────────────────────────────────────────────────────────────
+
+export type {
+  Diagnostic,
+  ValidationResult,
+  XmlInput,
+  XsdInput,
+  SchemaBundle,
+  ProjectFiles,
+  ProjectValidatorOptions,
+  ProjectValidator,
+} from "./types";
+
+export { createProjectValidator } from "./project-validator";

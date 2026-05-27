@@ -109,6 +109,12 @@ public:
             _nameToUri[bname] = uri;
     }
 
+    void clear() {
+        _byUri.clear();
+        _byName.clear();
+        _nameToUri.clear();
+    }
+
     InputSource* resolveEntity(
         const XMLCh* const /* publicId */,
         const XMLCh* const systemId) override
@@ -294,6 +300,201 @@ emscripten::val validate(const std::string& xmlText, emscripten::val xsdParam, e
     return result;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ProjectValidator — persistent validator with a cached grammar pool.
+//
+// Solves the "re-parse 80 XSD files on every keystroke" problem.  The base
+// schemas are parsed once into an XMLGrammarPool that lives in WASM memory.
+// Each subsequent validate() call reuses the compiled grammar — no parsing.
+//
+// When connectors.xsd changes (user downloads a connector), call
+// updateConnectors() to swap that one file and rebuild the pool.  Validation
+// stays fast.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class ProjectValidator {
+    XMLGrammarPoolImpl*  _pool;
+    MemoryEntityResolver _resolver;
+    std::string          _entryName;       // bare filename, e.g. "mediators.xsd"
+    std::string          _entryUri;        // "memory:///mediators.xsd"
+    std::string          _entryContent;
+    std::string          _targetNamespace;
+    bool                 _ready = false;
+
+    bool compilePool() {
+        // unlockPool() is a no-op if already unlocked.
+        _pool->unlockPool();
+        _pool->clear();
+
+        SAXParser parser(nullptr, XMLPlatformUtils::fgMemoryManager, _pool);
+        CollectingErrorHandler handler;
+        parser.setErrorHandler(&handler);
+        parser.setEntityResolver(&_resolver);
+        parser.setDoNamespaces(true);
+        parser.setDoSchema(true);
+        parser.setValidationSchemaFullChecking(false);
+        parser.cacheGrammarFromParse(true);
+
+        try {
+            MemBufInputSource src(
+                (const XMLByte*)_entryContent.c_str(),
+                _entryContent.size(),
+                _entryUri.c_str());
+            parser.loadGrammar(src, Grammar::SchemaGrammarType, true);
+        } catch (...) {
+            return false;
+        }
+
+        _pool->lockPool();
+        return true;
+    }
+
+public:
+    ProjectValidator() {
+        ensureInit();
+        _pool = new XMLGrammarPoolImpl(XMLPlatformUtils::fgMemoryManager);
+    }
+
+    ~ProjectValidator() {
+        delete _pool;
+    }
+
+    // Load all base XSD files into the pool.
+    // entryName: bare filename of the root schema (e.g. "mediators.xsd")
+    // filesObj:  JS object mapping filename → XSD content
+    // targetNsParam: optional explicit namespace; auto-detected if null/undefined
+    bool init(
+        const std::string& entryName,
+        emscripten::val filesObj,
+        emscripten::val targetNsParam)
+    {
+        _resolver.clear();
+        _entryName = entryName;
+        _entryContent.clear();
+        _ready = false;
+
+        emscripten::val keys =
+            emscripten::val::global("Object").call<emscripten::val>("keys", filesObj);
+        int len = keys["length"].as<int>();
+
+        for (int i = 0; i < len; i++) {
+            std::string name    = keys[i].as<std::string>();
+            std::string content = filesObj[name].as<std::string>();
+            std::string uri     = "memory:///" + name;
+            _resolver.add(uri, content);
+
+            if (name == entryName) {
+                _entryContent = content;
+                _entryUri     = uri;
+            }
+        }
+
+        if (_entryContent.empty()) return false;
+
+        if (!targetNsParam.isUndefined() && !targetNsParam.isNull()) {
+            _targetNamespace = targetNsParam.as<std::string>();
+        } else {
+            _targetNamespace = extractTargetNamespace(_entryContent);
+        }
+
+        _ready = compilePool();
+        return _ready;
+    }
+
+    // Replace one file's content and rebuild the pool.
+    // Use for connectors.xsd updates when SchemaGenerate regenerates it.
+    bool updateFile(const std::string& name, const std::string& content) {
+        if (!_ready) return false;
+        std::string uri = "memory:///" + name;
+        _resolver.add(uri, content);  // add() overwrites existing entries
+        if (name == _entryName) {
+            _entryContent = content;
+            _targetNamespace = extractTargetNamespace(_entryContent);
+        }
+        _ready = compilePool();
+        return _ready;
+    }
+
+    bool isReady() const { return _ready; }
+
+    emscripten::val validate(const std::string& xmlText) {
+        auto result    = emscripten::val::object();
+        auto parseArr  = emscripten::val::array();
+        auto schemaArr = emscripten::val::array();
+
+        // Pass 1 — syntax only (same as legacy path)
+        auto pass1 = runSyntaxPass(xmlText);
+        std::vector<DiagnosticEntry> parseErrors;
+        for (auto& e : pass1)
+            if (e.severity == "fatal")
+                parseErrors.push_back(e);
+
+        // Pass 2 — schema validation using the cached pool.  No re-parsing.
+        std::vector<DiagnosticEntry> schemaErrors;
+        if (_ready) {
+            SAXParser parser(nullptr, XMLPlatformUtils::fgMemoryManager, _pool);
+            CollectingErrorHandler handler;
+            parser.setErrorHandler(&handler);
+            parser.setEntityResolver(&_resolver);
+            parser.setDoNamespaces(true);
+            parser.setValidationScheme(SAXParser::Val_Always);
+            parser.setDoSchema(true);
+            parser.setValidationSchemaFullChecking(false);
+            parser.useCachedGrammarInParse(true);
+            parser.cacheGrammarFromParse(false);
+
+            if (_targetNamespace.empty()) {
+                parser.setExternalNoNamespaceSchemaLocation(_entryUri.c_str());
+            } else {
+                std::string schemaLoc = _targetNamespace + " " + _entryUri;
+                parser.setExternalSchemaLocation(schemaLoc.c_str());
+            }
+
+            try {
+                MemBufInputSource xmlSrc(
+                    (const XMLByte*)xmlText.c_str(), xmlText.size(), "document");
+                parser.parse(xmlSrc);
+            } catch (const SAXParseException&) {
+            } catch (...) {}
+
+            for (auto& e : handler.entries)
+                if (!isIgnorableXmlSchemaDtdWarning(e))
+                    schemaErrors.push_back(e);
+        }
+
+        for (auto& e : parseErrors) {
+            auto obj = emscripten::val::object();
+            obj.set("message",  e.message);
+            obj.set("line",     e.line);
+            obj.set("column",   e.column);
+            obj.set("severity", e.severity);
+            parseArr.call<void>("push", obj);
+        }
+
+        for (auto& e : schemaErrors) {
+            auto obj = emscripten::val::object();
+            obj.set("message",  e.message);
+            obj.set("line",     e.line);
+            obj.set("column",   e.column);
+            obj.set("severity", e.severity);
+            schemaArr.call<void>("push", obj);
+        }
+
+        bool valid = parseErrors.empty() && schemaErrors.empty();
+        result.set("valid",        valid);
+        result.set("parseErrors",  parseArr);
+        result.set("schemaErrors", schemaArr);
+        return result;
+    }
+};
+
 EMSCRIPTEN_BINDINGS(xerces_bridge) {
     emscripten::function("validate", &validate);
+
+    emscripten::class_<ProjectValidator>("ProjectValidator")
+        .constructor<>()
+        .function("init",         &ProjectValidator::init)
+        .function("updateFile",   &ProjectValidator::updateFile)
+        .function("isReady",      &ProjectValidator::isReady)
+        .function("validate",     &ProjectValidator::validate);
 }

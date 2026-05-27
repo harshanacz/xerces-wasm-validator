@@ -8,37 +8,70 @@ Schema is compiled once per project into a persistent WASM grammar pool. Every `
 
 ## How it works
 
+### Phase 1 — `init()` — runs once when the project opens
+
 ```
-[ JavaScript Side ]                        [ WASM / C++ Linear Memory ]
+  JavaScript                         WASM Linear Memory
+  ──────────────────────────────     ──────────────────────────────────────────────
 
-                          .init()
-┌─────────────────────┐ ─────────────────> ┌────────────────────────────┐
-│  80+ XSD Files      │                    │  MemoryEntityResolver      │
-│  (strings / Buffer) │                    │  (Virtual File System)     │
-└─────────────────────┘                    └─────────────┬──────────────┘
-                                                         │  resolves xs:include
-                                                         ▼
-                                           ┌────────────────────────────┐
-                                           │  SAXParser  (Compiler)     │
-                                           └─────────────┬──────────────┘
-                                                         │  cacheGrammarFromParse
-                                                         ▼
-                                           ┌────────────────────────────┐
-                                           │  XMLGrammarPoolImpl        │
-                                           │  (Locked, compiled tree)   │
-                                           └────────────────────────────┘
+  createProjectValidator({
+    entry: "mediators.xsd",
+    files: {                   ──>   ┌─────────────────────────────────────────┐
+      "mediators.xsd":  "...",       │  MemoryEntityResolver                   │
+      "connectors.xsd": "...",       │  (in-memory virtual file system)        │
+      "api.xsd":        "...",       │                                         │
+      ...80 files                    │  "mediators.xsd"  → <xsd content>       │
+    }                                │  "connectors.xsd" → <xsd content>       │
+  })                                 │  "api.xsd"        → <xsd content>  ...  │
+                                     └──────────────────┬──────────────────────┘
+                                                        │
+                                          SAXParser calls resolveEntity()
+                                          for every xs:include it encounters
+                                                        │
+                                                        ▼
+                                     ┌─────────────────────────────────────────┐
+                                     │  SAXParser  [ cacheGrammarFromParse ]   │
+                                     │                                         │
+                                     │  reads mediators.xsd                    │
+                                     │    └─ xs:include "connectors.xsd" ──>   │
+                                     │    └─ xs:include "api.xsd"        ──>   │
+                                     │    └─ ... (resolves all 80 files)       │
+                                     └──────────────────┬──────────────────────┘
+                                                        │ compiles entire schema tree
+                                                        ▼
+                                     ┌─────────────────────────────────────────┐
+                                     │  XMLGrammarPoolImpl  [ LOCKED ]         │
+                                     │                                         │
+                                     │  fully compiled grammar lives here      │
+                                     │  persists in WASM memory                │
+                                     │  shared across all validate() calls     │
+                                     └─────────────────────────────────────────┘
+```
 
-                          .validate()
-┌─────────────────────┐ ─────────────────> ┌────────────────────────────┐
-│  XML document       │                    │  SAXParser                 │
-│  (string / Buffer)  │                    │  useCachedGrammarInParse   │
-└─────────────────────┘                    │  ──> pool lookup (no parse)│
-                                           └─────────────┬──────────────┘
-                                                         │
-                                                         ▼
-                                           ┌────────────────────────────┐
-                         <─────────────────│  ValidationResult          │
-                                           └────────────────────────────┘
+### Phase 2 — `validate()` — runs on every keystroke
+
+```
+  JavaScript                         WASM Linear Memory
+  ──────────────────────────────     ──────────────────────────────────────────────
+
+  proj.validate(xmlContent)  ──>    ┌─────────────────────────────────────────┐
+                                    │  SAXParser  [ useCachedGrammarInParse ] │
+  (only the XML crosses             │                                         │
+   the JS → WASM boundary)         │  looks up compiled grammar from pool    │
+                                    │  NO schema parsing — pool already ready │
+                                    └──────────────────┬──────────────────────┘
+                                                       │
+                                                       ▼
+                                    ┌─────────────────────────────────────────┐
+                                    │  XMLGrammarPoolImpl  [ LOCKED ]         │
+                                    │  (reused, untouched)                    │
+                                    └──────────────────┬──────────────────────┘
+                                                       │
+  {                          <──                       │ validates XML
+    valid: true/false,                                 ▼
+    parseErrors:  [...],          ┌─────────────────────────────────────────┐
+    schemaErrors: [...]           │  ValidationResult                       │
+  }                               └─────────────────────────────────────────┘
 ```
 
 ---

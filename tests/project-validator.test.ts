@@ -226,11 +226,11 @@ describe("createProjectValidator — fast repeated validation", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// GROUP 3 — updateFile (connector download flow)
+// GROUP 3 — reload (connector download flow)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe("createProjectValidator — updateFile", () => {
-  test("connector added via updateFile becomes valid", async () => {
+describe("createProjectValidator — reload", () => {
+  test("connector added via reload becomes valid", async () => {
     const proj = await createProjectValidator({
       entry: "mediators.xsd",
       files: {
@@ -243,8 +243,11 @@ describe("createProjectValidator — updateFile", () => {
     // Before: <s3.getObject> is not in the empty connectors schema
     expect((await proj.validate(seqWithS3)).valid).toBe(false);
 
-    // User downloads s3 connector → SchemaGenerate regenerates connectors.xsd
-    await proj.updateFile("connectors.xsd", s3ConnectorsXsd);
+    // User downloads s3 connector → LS reads all files from disk + new connectors.xsd
+    await proj.reload({
+      "mediators.xsd":  mediatorsXsd,
+      "connectors.xsd": s3ConnectorsXsd,
+    });
 
     // After: <s3.getObject> is now allowed
     expect((await proj.validate(seqWithS3)).valid).toBe(true);
@@ -252,7 +255,7 @@ describe("createProjectValidator — updateFile", () => {
     proj.destroy();
   });
 
-  test("multiple connector updates accumulate correctly", async () => {
+  test("multiple reloads accumulate correctly", async () => {
     const proj = await createProjectValidator({
       entry: "mediators.xsd",
       files: {
@@ -265,18 +268,24 @@ describe("createProjectValidator — updateFile", () => {
     expect((await proj.validate(seqWithS3)).valid).toBe(false);
     expect((await proj.validate(seqWithHttp)).valid).toBe(false);
 
-    await proj.updateFile("connectors.xsd", s3ConnectorsXsd);
+    await proj.reload({
+      "mediators.xsd":  mediatorsXsd,
+      "connectors.xsd": s3ConnectorsXsd,
+    });
     expect((await proj.validate(seqWithS3)).valid).toBe(true);
     expect((await proj.validate(seqWithHttp)).valid).toBe(false);
 
-    await proj.updateFile("connectors.xsd", s3AndHttpConnectorsXsd);
+    await proj.reload({
+      "mediators.xsd":  mediatorsXsd,
+      "connectors.xsd": s3AndHttpConnectorsXsd,
+    });
     expect((await proj.validate(seqWithS3)).valid).toBe(true);
     expect((await proj.validate(seqWithHttp)).valid).toBe(true);
 
     proj.destroy();
   });
 
-  test("base mediator (log) still works after connector updates", async () => {
+  test("base mediator (log) still works after reload", async () => {
     const proj = await createProjectValidator({
       entry: "mediators.xsd",
       files: {
@@ -287,9 +296,9 @@ describe("createProjectValidator — updateFile", () => {
     });
 
     expect((await proj.validate(seqWithLog)).valid).toBe(true);
-    await proj.updateFile("connectors.xsd", s3ConnectorsXsd);
+    await proj.reload({ "mediators.xsd": mediatorsXsd, "connectors.xsd": s3ConnectorsXsd });
     expect((await proj.validate(seqWithLog)).valid).toBe(true);
-    await proj.updateFile("connectors.xsd", s3AndHttpConnectorsXsd);
+    await proj.reload({ "mediators.xsd": mediatorsXsd, "connectors.xsd": s3AndHttpConnectorsXsd });
     expect((await proj.validate(seqWithLog)).valid).toBe(true);
 
     proj.destroy();
@@ -424,7 +433,7 @@ describe("createProjectValidator — multi-project isolation", () => {
     expect((await projB.validate(seqWithS3)).valid).toBe(false);
 
     // Only projA gets the s3 connector
-    await projA.updateFile("connectors.xsd", s3ConnectorsXsd);
+    await projA.reload({ "mediators.xsd": mediatorsXsd, "connectors.xsd": s3ConnectorsXsd });
 
     expect((await projA.validate(seqWithS3)).valid).toBe(true);
     // projB must still reject s3

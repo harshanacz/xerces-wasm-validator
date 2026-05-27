@@ -346,6 +346,12 @@ class ProjectValidator {
         }
 
         _pool->lockPool();
+
+        // Strings no longer needed — grammar is compiled into the pool.
+        // The resolver is empty during validate(); the locked pool serves everything.
+        _resolver.clear();
+        _entryContent.clear();
+
         return true;
     }
 
@@ -397,20 +403,6 @@ public:
             _targetNamespace = extractTargetNamespace(_entryContent);
         }
 
-        _ready = compilePool();
-        return _ready;
-    }
-
-    // Replace one file's content and rebuild the pool.
-    // Use for connectors.xsd updates when SchemaGenerate regenerates it.
-    bool updateFile(const std::string& name, const std::string& content) {
-        if (!_ready) return false;
-        std::string uri = "memory:///" + name;
-        _resolver.add(uri, content);  // add() overwrites existing entries
-        if (name == _entryName) {
-            _entryContent = content;
-            _targetNamespace = extractTargetNamespace(_entryContent);
-        }
         _ready = compilePool();
         return _ready;
     }
@@ -493,8 +485,7 @@ EMSCRIPTEN_BINDINGS(xerces_bridge) {
 
     emscripten::class_<ProjectValidator>("ProjectValidator")
         .constructor<>()
-        .function("init",         &ProjectValidator::init)
-        .function("updateFile",   &ProjectValidator::updateFile)
-        .function("isReady",      &ProjectValidator::isReady)
-        .function("validate",     &ProjectValidator::validate);
+        .function("init",     &ProjectValidator::init)
+        .function("isReady",  &ProjectValidator::isReady)
+        .function("validate", &ProjectValidator::validate);
 }

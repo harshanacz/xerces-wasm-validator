@@ -33,6 +33,8 @@ export interface ProjectValidatorOptions {
 
 export interface ProjectValidator {
   validate(xml: XmlInput): Promise<ValidationResult>;
-  updateFile(name: string, content: XmlInput): Promise<void>;
+  // Re-read all schema files from disk and recompile the pool.
+  // Call when connectors.xsd is regenerated after a connector download.
+  reload(files: ProjectFiles): Promise<void>;
   destroy(): void;
 }

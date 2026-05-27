@@ -51,11 +51,16 @@ export async function createProjectValidator(
       return instance.validate(await toText(xml));
     },
 
-    async updateFile(name: string, content: XmlInput): Promise<void> {
+    async reload(files: ProjectFiles): Promise<void> {
       if (destroyed) throw new Error("ProjectValidator: already destroyed");
-      const ok = instance.updateFile(name, await toText(content));
+      const filesText = await filesToTextMap(files);
+      const ok = instance.init(
+        options.entry,
+        filesText,
+        options.targetNamespace ?? null
+      );
       if (!ok) throw new Error(
-        `ProjectValidator: failed to recompile schema after updating "${name}"`
+        `ProjectValidator: failed to recompile schema on reload`
       );
     },
 

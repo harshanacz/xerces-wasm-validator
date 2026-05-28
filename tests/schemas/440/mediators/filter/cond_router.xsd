@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  ~ Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+  ~
+  ~ All rights reserved. This program and the accompanying materials
+  ~ are made available under the terms of the Eclipse Public License v2.0
+  ~ which accompanies this distribution, and is available at
+  ~ http://www.eclipse.org/legal/epl-v20.html
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  ~
+  ~ Contributors:
+  ~     WSO2 LLC - support for WSO2 Micro Integrator Configuration
+  -->
+
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        elementFormDefault="qualified"
+        targetNamespace="http://ws.apache.org/ns/synapse"
+        xmlns="http://ws.apache.org/ns/synapse">
+
+    <xs:include schemaLocation="../../misc/target.xsd"/>
+    <xs:include schemaLocation="../../misc/evaluators.xsd"/>
+
+    <xs:element name="conditionalRouter">
+        <xs:annotation>
+            <xs:documentation source="description">
+                Routes messages to the given target sequence only if the specified conditions are fulfilled.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="conditionalRoute" minOccurs="1" maxOccurs="unbounded">
+                    <xs:annotation>
+                        <xs:documentation>
+                            A single route in the conditional router, which should have a condition
+                            and a target
+                        </xs:documentation>
+                    </xs:annotation>
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="condition" minOccurs="1" maxOccurs="1">
+                                <!-- TODO : point to the evaluators xsd -->
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element ref="equal" minOccurs="1" maxOccurs="1"/>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                            <xs:element ref="target" minOccurs="1" maxOccurs="1"/>
+                        </xs:sequence>
+                        <xs:attribute name="asynchronous" type="xs:boolean" default="false"/>
+                        <xs:attribute name="breakRoute" type="xs:boolean" default="false"/>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+            <xs:attribute name="continueAfter" type="xs:boolean" use="optional" default="false"/>
+            <xs:attribute name="description" type="xs:string" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>
+

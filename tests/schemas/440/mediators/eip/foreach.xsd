@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  ~ Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+  ~
+  ~ All rights reserved. This program and the accompanying materials
+  ~ are made available under the terms of the Eclipse Public License v2.0
+  ~ which accompanies this distribution, and is available at
+  ~ http://www.eclipse.org/legal/epl-v20.html
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  ~
+  ~ Contributors:
+  ~     WSO2 LLC - support for WSO2 Micro Integrator Configuration
+  -->
+
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        xmlns:jaxb="http://java.sun.com/xml/ns/jaxb"
+        jaxb:version="2.0"
+        elementFormDefault="qualified"
+        targetNamespace="http://ws.apache.org/ns/synapse"
+        xmlns="http://ws.apache.org/ns/synapse">
+
+    <xs:include schemaLocation="../mediators.xsd"/>
+    <xs:include schemaLocation="../../misc/common.xsd"/>
+
+    <xs:element name="foreach">
+        <xs:annotation>
+            <xs:documentation source="description">
+                Iterate over a list and then merges back the result.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="sequence" type="sequence" minOccurs="0" maxOccurs="1"/>
+            </xs:sequence>
+            <xs:attribute name="expression" type="xs:string" use="optional"/>
+            <xs:attribute name="collection" type="xs:string" use="optional"/>
+            <xs:attribute name="sequence" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:appinfo>
+                        <jaxb:property name="sequence_attribute"/>
+                    </xs:appinfo>
+                </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="parallel-execution" type="xs:boolean" default="true"/>
+            <xs:attribute name="continue-without-aggregation" type="xs:boolean" use="optional"/>
+            <xs:attribute name="update-original" type="xs:boolean" use="optional"/>
+            <xs:attribute name="target-variable" type="xs:string" use="optional"/>
+            <xs:attribute name="counter-variable" type="xs:string" use="optional"/>
+            <xs:attribute name="result-enclosing-element" type="xs:string" use="optional"/>
+            <xs:attribute name="result-content-type" use="optional">
+                <xs:simpleType>
+                    <xs:restriction base="xs:string">
+                        <xs:enumeration value="JSON"/>
+                        <xs:enumeration value="XML"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:attribute>
+            <xs:attribute name="id" type="xs:string" use="optional"/>
+            <xs:attribute name="description" type="xs:string" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>

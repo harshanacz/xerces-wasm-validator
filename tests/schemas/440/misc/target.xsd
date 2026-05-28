@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  ~ Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+  ~
+  ~ All rights reserved. This program and the accompanying materials
+  ~ are made available under the terms of the Eclipse Public License v2.0
+  ~ which accompanies this distribution, and is available at
+  ~ http://www.eclipse.org/legal/epl-v20.html
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  ~
+  ~ Contributors:
+  ~     WSO2 LLC - support for WSO2 Micro Integrator Configuration
+  -->
+
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        xmlns:jaxb="http://java.sun.com/xml/ns/jaxb"
+        jaxb:version="2.0"
+        elementFormDefault="qualified"
+        targetNamespace="http://ws.apache.org/ns/synapse"
+        xmlns="http://ws.apache.org/ns/synapse">
+
+    <xs:include schemaLocation="../endpoint.xsd"/>
+    <xs:include schemaLocation="../mediators/mediators.xsd"/>
+    <xs:include schemaLocation="../misc/common.xsd"/>
+
+    <xs:element name="target" type="Target">
+        <xs:annotation>
+            <xs:documentation source="description">
+                Target description
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:complexType name="Target">
+        <xs:annotation>
+            <xs:documentation>
+                This denotes the target for various mediators
+            </xs:documentation>
+        </xs:annotation>
+        <xs:all>
+            <xs:element name="sequence" type="sequence" minOccurs="0" maxOccurs="1"/>
+            <xs:element name="endpoint" type="NamedEndpoint" minOccurs="0" maxOccurs="1"/>
+        </xs:all>
+        <xs:attribute name="sequence" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:appinfo>
+                    <jaxb:property name="sequence_attribute"/>
+                </xs:appinfo>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="endpoint" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:appinfo>
+                    <jaxb:property name="endpoint_attribute"/>
+                </xs:appinfo>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="to" type="xs:string" use="optional"/>
+        <xs:attribute name="soapAction" type="xs:string" use="optional"/>
+    </xs:complexType>
+
+    <xs:complexType name="ProxyTarget">
+        <xs:annotation>
+            <xs:documentation>
+                This denotes the target for a proxy or for various mediators
+            </xs:documentation>
+        </xs:annotation>
+        <xs:all>
+            <xs:element name="inSequence" type="sequence" minOccurs="0" maxOccurs="1"/>
+            <xs:element name="outSequence" type="sequence" minOccurs="0" maxOccurs="1"/>
+            <xs:element name="faultSequence" type="sequence" minOccurs="0" maxOccurs="1"/>
+            <xs:element name="endpoint" type="NamedEndpoint" minOccurs="0" maxOccurs="1"/>
+        </xs:all>
+        <xs:attribute name="inSequence" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:appinfo>
+                    <jaxb:property name="inSequence_attribute"/>
+                </xs:appinfo>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="outSequence" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:appinfo>
+                    <jaxb:property name="outSequence_attribute"/>
+                </xs:appinfo>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="faultSequence" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:appinfo>
+                    <jaxb:property name="faultSequence_attribute"/>
+                </xs:appinfo>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="endpoint" type="xs:string" use="optional">
+            <xs:annotation>
+                <xs:appinfo>
+                    <jaxb:property name="endpoint_attribute"/>
+                </xs:appinfo>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+</xs:schema>

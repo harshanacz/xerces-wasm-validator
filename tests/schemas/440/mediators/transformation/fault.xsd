@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  ~ Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+  ~
+  ~ All rights reserved. This program and the accompanying materials
+  ~ are made available under the terms of the Eclipse Public License v2.0
+  ~ which accompanies this distribution, and is available at
+  ~ http://www.eclipse.org/legal/epl-v20.html
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  ~
+  ~ Contributors:
+  ~     WSO2 LLC - support for WSO2 Micro Integrator Configuration
+  -->
+
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        elementFormDefault="qualified"
+        targetNamespace="http://ws.apache.org/ns/synapse"
+        xmlns="http://ws.apache.org/ns/synapse">
+
+    <xs:include schemaLocation="../../misc/common.xsd"/>
+
+    <xs:element name="makefault">
+        <xs:annotation>
+            <xs:documentation source="description">
+                Transforms the current message into a fault message, which is returned to the client.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="code" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation source="description">
+                            The fault code
+                        </xs:documentation>
+                    </xs:annotation>
+                    <xs:complexType>
+                        <xs:attributeGroup ref="valueOrExpression"/>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="reason" minOccurs="1" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation source="description">
+                            The fault reason
+                        </xs:documentation>
+                    </xs:annotation>
+                    <xs:complexType>
+                        <xs:attributeGroup ref="valueOrExpression"/>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="node" minOccurs="0" maxOccurs="1" type="xs:anyType"/>
+                <xs:element name="role" minOccurs="0" maxOccurs="1" type="xs:anyType"/>
+                <xs:element name="detail" minOccurs="0" maxOccurs="1">
+                    <xs:complexType mixed="true">
+                        <xs:attribute name="expression" type="xs:string" use="optional"/>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+            <xs:attribute name="version" use="optional" default="soap12">
+                <xs:simpleType>
+                    <xs:restriction base="xs:string">
+                        <xs:enumeration value="soap11"/>
+                        <xs:enumeration value="soap12"/>
+                        <xs:enumeration value="pox"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:attribute>
+            <xs:attribute name="response" type="xs:boolean" use="optional"/>
+            <xs:attribute name="description" type="xs:string" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>
+

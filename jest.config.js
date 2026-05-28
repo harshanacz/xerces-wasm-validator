@@ -8,7 +8,6 @@ module.exports = {
       tsconfig: {
         module: 'commonjs',
         esModuleInterop: true,
-        ignoreDeprecations: '6.0',
       }
     }]
   },

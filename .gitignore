@@ -2,6 +2,16 @@ node_modules/
 dist/
 wasm/
 .DS_Store
-EOF
 /.claude
 /.idea
+
+# emsdk toolchain — downloaded on first build, not committed
+tools/emsdk/upstream/
+tools/emsdk/node/
+tools/emsdk/python/
+tools/emsdk/.emscripten
+tools/emsdk/.emscripten_cache/
+tools/emsdk/downloads/
+
+# Xerces-C WASM build artifacts
+native/xerces-c/build-wasm/

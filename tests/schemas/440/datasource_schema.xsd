@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  ~ Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+  ~
+  ~ All rights reserved. This program and the accompanying materials
+  ~ are made available under the terms of the Eclipse Public License v2.0
+  ~ which accompanies this distribution, and is available at
+  ~ http://www.eclipse.org/legal/epl-v20.html
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  ~
+  ~ Contributors:
+  ~     WSO2 LLC - support for WSO2 Micro Integrator Configuration
+  -->
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified">
+
+
+    <xs:element name="datasource" type="datasourceType"></xs:element>
+
+
+    <xs:complexType name="datasourceType">
+        <xs:sequence>
+            <xs:element name="name" type="xs:string" maxOccurs="1"
+                        minOccurs="1">
+            </xs:element>
+            <xs:element name="description" type="xs:string"
+                        maxOccurs="1" minOccurs="0">
+            </xs:element>
+            <xs:element name="jndiConfig" type="jndiConfigType"
+                        maxOccurs="1" minOccurs="0">
+            </xs:element>
+            <xs:choice>
+                <xs:element name="definition" type="definitionType"
+                            maxOccurs="1" minOccurs="1">
+                </xs:element>
+            </xs:choice>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="definitionType">
+        <xs:sequence>
+            <xs:element name="configuration" type="configurationType"
+                        maxOccurs="1" minOccurs="0">
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="type" type="xs:string"></xs:attribute>
+    </xs:complexType>
+
+    <xs:complexType name="configurationType" mixed="true">
+        <xs:sequence>
+            <xs:choice>
+                <xs:any processContents="skip" maxOccurs="unbounded"
+                        minOccurs="0"/>
+            </xs:choice>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="jndiConfigType">
+        <xs:sequence>
+            <xs:element name="name" type="xs:string" maxOccurs="1"
+                        minOccurs="0">
+            </xs:element>
+            <xs:element name="environment" type="jndiEnvType"
+                        maxOccurs="1" minOccurs="0">
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="useDataSourceFactory" type="xs:boolean"></xs:attribute>
+    </xs:complexType>
+
+    <xs:complexType name="jndiEnvType">
+        <xs:sequence>
+            <xs:element name="property" type="propertyType"
+                        maxOccurs="unbounded" minOccurs="0"></xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="propertyType">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="name" type="xs:string">
+                </xs:attribute>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+</xs:schema>

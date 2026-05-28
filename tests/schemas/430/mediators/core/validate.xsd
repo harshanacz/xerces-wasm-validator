@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  ~ Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+  ~
+  ~ All rights reserved. This program and the accompanying materials
+  ~ are made available under the terms of the Eclipse Public License v2.0
+  ~ which accompanies this distribution, and is available at
+  ~ http://www.eclipse.org/legal/epl-v20.html
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  ~
+  ~ Contributors:
+  ~     WSO2 LLC - support for WSO2 Micro Integrator Configuration
+  -->
+
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        elementFormDefault="qualified"
+        targetNamespace="http://ws.apache.org/ns/synapse"
+        xmlns="http://ws.apache.org/ns/synapse">
+
+    <xs:include schemaLocation="../mediators.xsd"/>
+    <xs:include schemaLocation="../../misc/common.xsd"/>
+
+    <xs:element name="validate">
+        <xs:annotation>
+            <xs:documentation source="description">
+                Validates an XML message against a specific XML schema or validates a JSON message against a JSON
+                schema.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="property" minOccurs="0" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:attribute name="name" type="xs:string" use="required"/>
+                        <xs:attribute name="value" type="xs:boolean" use="required"/>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="schema" minOccurs="1" maxOccurs="unbounded">
+                    <xs:annotation>
+                        <xs:documentation>
+                            The schema configuration over which the message is validated
+                        </xs:documentation>
+                    </xs:annotation>
+                    <xs:complexType>
+                        <xs:attribute name="key" type="xs:string" use="required"/>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element ref="feature" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="resource" minOccurs="0" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:attribute name="key" type="xs:string" use="required"/>
+                        <xs:attribute name="location" type="xs:string" use="required"/>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="on-fail" minOccurs="1" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            When the schema validation fail the validate mediator executes the
+                            on-fail sequence, while it continues the execution if it is successful
+                        </xs:documentation>
+                    </xs:annotation>
+                    <xs:complexType>
+                        <xs:group ref="mediatorList" minOccurs="1" maxOccurs="unbounded"/>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+            <xs:attribute name="cache-schema" type="xs:boolean" use="optional"/>
+            <xs:attribute name="source" type="xs:string" use="optional"/>
+            <xs:attribute name="description" type="xs:string" use="optional"/>
+
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>
+

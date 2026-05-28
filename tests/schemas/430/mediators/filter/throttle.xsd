@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  ~ Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+  ~
+  ~ All rights reserved. This program and the accompanying materials
+  ~ are made available under the terms of the Eclipse Public License v2.0
+  ~ which accompanies this distribution, and is available at
+  ~ http://www.eclipse.org/legal/epl-v20.html
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  ~
+  ~ Contributors:
+  ~     WSO2 LLC - support for WSO2 Micro Integrator Configuration
+  -->
+
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        xmlns:jaxb="http://java.sun.com/xml/ns/jaxb"
+        jaxb:version="2.0"
+        elementFormDefault="qualified"
+        targetNamespace="http://ws.apache.org/ns/synapse"
+        xmlns="http://ws.apache.org/ns/synapse"
+        xmlns:wsp="http://schemas.xmlsoap.org/ws/2004/09/policy"
+>
+
+    <xs:import namespace="http://schemas.xmlsoap.org/ws/2004/09/policy" schemaLocation="../../misc/ws-policy.xsd"/>
+    <xs:import namespace="http://www.wso2.org/products/wso2commons/throttle"
+               schemaLocation="../../misc/throttle_policy.xsd"/>
+
+
+    <xs:include schemaLocation="../mediators.xsd"/>
+    <xs:include schemaLocation="../../misc/common.xsd"/>
+
+    <xs:element name="throttle">
+        <xs:annotation>
+            <xs:documentation source="description">
+                Restricts access to services by applying rate limits or concurrency limits. The throttling configuration
+                is given in a WS policy that is specified inline or stored in the registry.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:all>
+                <xs:element name="policy" minOccurs="0" maxOccurs="1">
+                    <xs:complexType mixed="true">
+                        <xs:sequence>
+                            <xs:element ref="wsp:Policy" minOccurs="0" maxOccurs="1"/>
+                        </xs:sequence>
+                        <xs:attribute name="key" type="xs:string" use="optional"/>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="onAccept" type="sequence" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="onReject" type="sequence" minOccurs="0" maxOccurs="1"/>
+            </xs:all>
+            <xs:attribute name="id" type="xs:string" use="required"/>
+            <xs:attribute name="onAccept" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:appinfo>
+                        <jaxb:property name="onAccept_attribute"/>
+                    </xs:appinfo>
+                </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="onReject" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:appinfo>
+                        <jaxb:property name="onReject_attribute"/>
+                    </xs:appinfo>
+                </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="description" type="xs:string" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>

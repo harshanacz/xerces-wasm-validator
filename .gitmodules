@@ -4,3 +4,4 @@
 [submodule "tools/emsdk"]
 	path = tools/emsdk
 	url = https://github.com/emscripten-core/emsdk
+	shallow = true

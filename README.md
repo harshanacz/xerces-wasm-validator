@@ -12,6 +12,21 @@ Schema is compiled once per project into a persistent WASM grammar pool. Every `
 
 ---
 
+### WASM Validation: Dynamic Connector Flow
+
+**1. Server Init (Startup)**
+
+- **No connectors:** Load only the static core schemas (from the extension folder) and send to WASM.
+- **Connectors exist:** Load the static schemas, generate the `connectors.xsd` live in RAM, merge them, and send the full text map to WASM.
+
+**2. Live Updates (Add / Remove Connector)**
+
+- **The Trigger:** A user downloads a new connector or deletes one.
+- **The Action:** Instantly re-generate the `connectors.xsd` live in RAM to match the new state.
+- **The WASM Update:** Send the **full text map** (static + updated dynamic string) to WASM again. The C++ engine needs the whole map to successfully re-compile the locked rules.
+
+---
+
 ## Multiple projects
 
 Each project gets its own grammar pool in WASM memory. They share one WASM instance but never share state.

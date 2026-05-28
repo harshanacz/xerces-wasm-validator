@@ -1,11 +1,10 @@
 import { promises as fs } from "fs";
 import * as path from "path";
-import * as os from "os";
 import { createProjectValidator } from "../src/index";
 
 const GLOBAL_LS_FOLDER = path.join(__dirname, "schemas", "430");
 
-// Build a flat map keyed by the file's relative path from `root`.
+// Reads the global extension schema folder into a relative-path keyed map.
 // Keys like "mediators/core/call.xsd" let the WASM resolver reconstruct
 // the full virtual URI "memory:///mediators/core/call.xsd", so xs:include
 // paths like "../../endpoint.xsd" resolve correctly inside the WASM sandbox.
@@ -27,69 +26,71 @@ async function readSchemaFolder(root: string): Promise<Record<string, string>> {
   return out;
 }
 
-describe("Schema Mixer — Global LS + User Project merge", () => {
-  // Marker the user-project copy of connectors.xsd carries so we can prove
-  // which version survived into the final map.
-  const USER_CONNECTORS_MARKER = "USER_PROJECT_CONNECTORS_MARKER_v9_9_9";
+// Simulates what the LS does when a user installs a connector:
+// generates a connectors.xsd in memory that enumerates the connector elements.
+function generateConnectorsXsd(connectorElements: string[]): string {
+  const elements = connectorElements
+    .map(
+      (name) =>
+        `    <xs:element name="${name}">` +
+        `<xs:complexType><xs:anyAttribute processContents="skip"/></xs:complexType>` +
+        `</xs:element>`
+    )
+    .join("\n");
 
-  const USER_CONNECTORS_XSD = `<?xml version="1.0" encoding="ISO-8859-1"?>
+  return `<?xml version="1.0" encoding="ISO-8859-1"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
            elementFormDefault="qualified"
            targetNamespace="http://ws.apache.org/ns/synapse"
            xmlns="http://ws.apache.org/ns/synapse">
-  <!-- ${USER_CONNECTORS_MARKER} -->
   <xs:group name="connectors">
     <xs:choice>
+${elements}
       <xs:any namespace="##other" processContents="skip"/>
     </xs:choice>
   </xs:group>
 </xs:schema>
 `;
+}
 
-  // The override must use the same relative-path key as the global map entry.
-  // In the 430 tree that is "mediators/connectors.xsd".
-  const CONNECTORS_KEY = "mediators/connectors.xsd";
+const CONNECTORS_KEY = "mediators/connectors.xsd";
 
-  let userProjectFolder: string;
+describe("Schema Mixer — in-memory injection", () => {
+  let globalMap: Record<string, string>;
 
   beforeAll(async () => {
-    userProjectFolder = await fs.mkdtemp(path.join(os.tmpdir(), "user-proj-"));
-    const mediatorsDir = path.join(userProjectFolder, "mediators");
-    await fs.mkdir(mediatorsDir, { recursive: true });
-    await fs.writeFile(
-      path.join(mediatorsDir, "connectors.xsd"),
-      USER_CONNECTORS_XSD,
-      "utf8"
-    );
+    globalMap = await readSchemaFolder(GLOBAL_LS_FOLDER);
   });
 
-  afterAll(async () => {
-    await fs.rm(userProjectFolder, { recursive: true, force: true });
-  });
-
-  it("user project's connectors.xsd overrides the global one in the merged map", async () => {
-    const globalMap  = await readSchemaFolder(GLOBAL_LS_FOLDER);
-    const projectMap = await readSchemaFolder(userProjectFolder);
-
+  it("static global map contains the default connectors.xsd placeholder", () => {
     expect(globalMap[CONNECTORS_KEY]).toBeDefined();
-    expect(projectMap[CONNECTORS_KEY]).toBeDefined();
-    expect(globalMap[CONNECTORS_KEY]).not.toContain(USER_CONNECTORS_MARKER);
-    expect(projectMap[CONNECTORS_KEY]).toContain(USER_CONNECTORS_MARKER);
+    // The default is the empty placeholder — just the xs:any wildcard, no named elements.
+    expect(globalMap[CONNECTORS_KEY]).toContain(`name="connectors"`);
+  });
 
-    const finalMap = { ...globalMap, ...projectMap };
+  it("injecting a live-generated connectors.xsd overwrites the global placeholder", () => {
+    const liveGeneratedXML = generateConnectorsXsd(["s3_getObject", "s3_putObject"]);
 
-    expect(finalMap[CONNECTORS_KEY]).toBe(projectMap[CONNECTORS_KEY]);
+    const finalMap = { ...globalMap };
+    finalMap[CONNECTORS_KEY] = liveGeneratedXML;
+
+    // The injected string replaced the static one.
+    expect(finalMap[CONNECTORS_KEY]).toBe(liveGeneratedXML);
     expect(finalMap[CONNECTORS_KEY]).not.toBe(globalMap[CONNECTORS_KEY]);
-    expect(finalMap[CONNECTORS_KEY]).toContain(USER_CONNECTORS_MARKER);
 
-    // Project only contributed connectors.xsd, so merged key count equals global.
+    // The injected content contains the live connector elements.
+    expect(finalMap[CONNECTORS_KEY]).toContain("s3_getObject");
+    expect(finalMap[CONNECTORS_KEY]).toContain("s3_putObject");
+
+    // No new keys were added — same schema set, one entry overridden.
     expect(Object.keys(finalMap).sort()).toEqual(Object.keys(globalMap).sort());
   });
 
-  it("createProjectValidator compiles the merged map and validates a sample XML", async () => {
-    const globalMap  = await readSchemaFolder(GLOBAL_LS_FOLDER);
-    const projectMap = await readSchemaFolder(userProjectFolder);
-    const finalMap   = { ...globalMap, ...projectMap };
+  it("WASM bridge compiles the injected map and validates a sample XML", async () => {
+    const liveGeneratedXML = generateConnectorsXsd(["s3_getObject"]);
+
+    const finalMap = { ...globalMap };
+    finalMap[CONNECTORS_KEY] = liveGeneratedXML;
 
     const validator = await createProjectValidator({
       entry: "mediators/mediators.xsd",

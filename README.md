@@ -8,7 +8,7 @@ Schema is compiled once per project into a persistent WASM grammar pool. Every `
 
 ## How it works
 
-![Architecture diagram](docs/images/diagram.png)
+![Architecture diagram](docs/images/diagram2.png)
 
 ---
 

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  ~ Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+  ~
+  ~ All rights reserved. This program and the accompanying materials
+  ~ are made available under the terms of the Eclipse Public License v2.0
+  ~ which accompanies this distribution, and is available at
+  ~ http://www.eclipse.org/legal/epl-v20.html
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  ~
+  ~ Contributors:
+  ~     WSO2 LLC - support for WSO2 Micro Integrator Configuration
+  -->
+
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        elementFormDefault="qualified"
+        targetNamespace="http://ws.apache.org/ns/synapse"
+        xmlns="http://ws.apache.org/ns/synapse">
+
+    <xs:include schemaLocation="../../endpoint.xsd"/>
+
+    <xs:element name="call">
+        <xs:annotation>
+            <xs:documentation source="description">
+                Invokes an external service (in blocking or non-blocking mode). The service response is received by the
+                next mediator in the mediation flow.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:all>
+                <xs:element name="source" minOccurs="0" maxOccurs="1">
+
+                    <xs:complexType mixed="true">
+                        <xs:sequence>
+                            <xs:any minOccurs="0" processContents="skip"/>
+                        </xs:sequence>
+                        <xs:attribute name="contentType" type="xs:string" use="optional"/>
+                        <xs:attribute name="type" use="required">
+                            <xs:simpleType>
+                                <xs:restriction base="xs:string">
+                                    <xs:enumeration value="custom"/>
+                                    <xs:enumeration value="inline"/>
+                                    <xs:enumeration value="property"/>
+                                    <xs:enumeration value="body"/>
+                                </xs:restriction>
+                            </xs:simpleType>
+                        </xs:attribute>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="target" minOccurs="0" maxOccurs="1">
+                    <xs:complexType mixed="true">
+                        <xs:attribute name="type" use="required">
+                            <xs:simpleType>
+                                <xs:restriction base="xs:string">
+                                    <xs:enumeration value="property"/>
+                                    <xs:enumeration value="body"/>
+                                </xs:restriction>
+                            </xs:simpleType>
+                        </xs:attribute>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="endpoint" type="NamedEndpoint" minOccurs="0" maxOccurs="1"/>
+            </xs:all>
+            <xs:attribute name="blocking" type="xs:boolean" use="optional" default="true"/>
+            <xs:attribute name="initAxis2ClientOptions" type="xs:boolean" use="optional" default="true"/>
+            <xs:attribute name="description" type="xs:string" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>

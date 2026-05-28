@@ -8,71 +8,7 @@ Schema is compiled once per project into a persistent WASM grammar pool. Every `
 
 ## How it works
 
-### Phase 1 — `init()` — runs once when the project opens
-
-```
-  JavaScript                         WASM Linear Memory
-  ──────────────────────────────     ──────────────────────────────────────────────
-
-  createProjectValidator({
-    entry: "mediators.xsd",
-    files: {                   ──>   ┌─────────────────────────────────────────┐
-      "mediators.xsd":  "...",       │  MemoryEntityResolver                   │
-      "connectors.xsd": "...",       │  (in-memory virtual file system)        │
-      "api.xsd":        "...",       │                                         │
-      ...80 files                    │  "mediators.xsd"  → <xsd content>       │
-    }                                │  "connectors.xsd" → <xsd content>       │
-  })                                 │  "api.xsd"        → <xsd content>  ...  │
-                                     └──────────────────┬──────────────────────┘
-                                                        │
-                                          SAXParser calls resolveEntity()
-                                          for every xs:include it encounters
-                                                        │
-                                                        ▼
-                                     ┌─────────────────────────────────────────┐
-                                     │  SAXParser  [ cacheGrammarFromParse ]   │
-                                     │                                         │
-                                     │  reads mediators.xsd                    │
-                                     │    └─ xs:include "connectors.xsd" ──>   │
-                                     │    └─ xs:include "api.xsd"        ──>   │
-                                     │    └─ ... (resolves all 80 files)       │
-                                     └──────────────────┬──────────────────────┘
-                                                        │ compiles entire schema tree
-                                                        ▼
-                                     ┌─────────────────────────────────────────┐
-                                     │  XMLGrammarPoolImpl  [ LOCKED ]         │
-                                     │                                         │
-                                     │  fully compiled grammar lives here      │
-                                     │  persists in WASM memory                │
-                                     │  shared across all validate() calls     │
-                                     └─────────────────────────────────────────┘
-```
-
-### Phase 2 — `validate()` — runs on every keystroke
-
-```
-  JavaScript                         WASM Linear Memory
-  ──────────────────────────────     ──────────────────────────────────────────────
-
-  proj.validate(xmlContent)  ──>    ┌─────────────────────────────────────────┐
-                                    │  SAXParser  [ useCachedGrammarInParse ] │
-  (only the XML crosses             │                                         │
-   the JS → WASM boundary)         │  looks up compiled grammar from pool    │
-                                    │  NO schema parsing — pool already ready │
-                                    └──────────────────┬──────────────────────┘
-                                                       │
-                                                       ▼
-                                    ┌─────────────────────────────────────────┐
-                                    │  XMLGrammarPoolImpl  [ LOCKED ]         │
-                                    │  (reused, untouched)                    │
-                                    └──────────────────┬──────────────────────┘
-                                                       │
-  {                          <──                       │ validates XML
-    valid: true/false,                                 ▼
-    parseErrors:  [...],          ┌─────────────────────────────────────────┐
-    schemaErrors: [...]           │  ValidationResult                       │
-  }                               └─────────────────────────────────────────┘
-```
+![Architecture diagram](docs/images/diagram.png)
 
 ---
 
@@ -98,9 +34,22 @@ WASM instance (one, shared)
 
 ---
 
-## Build
+## Setup
 
-Requires [Emscripten](https://emscripten.org/).
+Requires Git, Node.js, and an internet connection for the first build. Everything else (Emscripten, Xerces-C) is fetched automatically.
+
+```bash
+git clone --recurse-submodules https://github.com/harshanacz/wso2-synapse-validator
+npm install
+npm run build:wasm   # installs Emscripten automatically on first run
+npm test
+```
+
+> **Note:** `npm run build:wasm` downloads the Emscripten toolchain (~500 MB) into `tools/emsdk/` on the first run. Subsequent builds skip this step.
+
+---
+
+## Build
 
 ```bash
 npm run build:wasm   # compile Xerces-C → wasm/xerces_validator.{js,wasm}

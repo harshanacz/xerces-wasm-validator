@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  ~ Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+  ~
+  ~ All rights reserved. This program and the accompanying materials
+  ~ are made available under the terms of the Eclipse Public License v2.0
+  ~ which accompanies this distribution, and is available at
+  ~ http://www.eclipse.org/legal/epl-v20.html
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  ~
+  ~ Contributors:
+  ~     WSO2 LLC - support for WSO2 Micro Integrator Configuration
+  -->
+
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        elementFormDefault="qualified"
+        targetNamespace="http://ws.apache.org/ns/synapse"
+        xmlns="http://ws.apache.org/ns/synapse">
+
+    <xs:include schemaLocation="../../misc/common.xsd"/>
+
+    <xs:element name="log">
+        <xs:annotation>
+            <xs:documentation source="description">
+                Generates logs for messages (mediated by a sequence or proxy service). By default, only the minimum
+                details are logged. If required, you can log the full message payload, headers, and even custom
+                user-defined properties.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="property" type="mediatorProperty" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="level" type="logLevel" use="optional" default="simple"/>
+            <xs:attribute name="separator" type="xs:string" use="optional" default=", "/>
+            <xs:attribute name="category" type="logCategory" use="optional" default="INFO"/>
+            <xs:attribute name="description" type="xs:string" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:simpleType name="logLevel">
+        <xs:annotation>
+            <xs:documentation source="description">
+                This simple type represents the possible values for
+                the header mediator action attribute
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="simple"/>
+            <xs:enumeration value="headers"/>
+            <xs:enumeration value="full"/>
+            <xs:enumeration value="custom"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="logCategory">
+        <xs:annotation>
+            <xs:documentation source="description">
+                This simple type represents the possible values for
+                the header mediator action attribute
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="INFO"/>
+            <xs:enumeration value="FATAL"/>
+            <xs:enumeration value="ERROR"/>
+            <xs:enumeration value="WARN"/>
+            <xs:enumeration value="DEBUG"/>
+            <xs:enumeration value="TRACE"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+</xs:schema>

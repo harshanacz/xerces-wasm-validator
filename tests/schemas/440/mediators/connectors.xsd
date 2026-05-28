@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" targetNamespace="http://ws.apache.org/ns/synapse" xmlns="http://ws.apache.org/ns/synapse">
+    <xs:group name="connectors">
+        <xs:choice>
+            <xs:any namespace="##other" processContents="skip"/>
+        </xs:choice>
+    </xs:group>
+</xs:schema>

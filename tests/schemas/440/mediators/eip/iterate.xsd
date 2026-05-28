@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  ~ Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+  ~
+  ~ All rights reserved. This program and the accompanying materials
+  ~ are made available under the terms of the Eclipse Public License v2.0
+  ~ which accompanies this distribution, and is available at
+  ~ http://www.eclipse.org/legal/epl-v20.html
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  ~
+  ~ Contributors:
+  ~     WSO2 LLC - support for WSO2 Micro Integrator Configuration
+  -->
+
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        elementFormDefault="qualified"
+        targetNamespace="http://ws.apache.org/ns/synapse"
+        xmlns="http://ws.apache.org/ns/synapse">
+
+    <xs:include schemaLocation="../../misc/target.xsd"/>
+
+    <xs:element name="iterate">
+        <xs:annotation>
+            <xs:documentation source="description">
+                Splits a message into several different messages and passes them to another sequence or endpoint. These
+                messages are processed in parallel (by default). The mediator splits messages by matching elements of
+                the original message with an XPath expression.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="target" minOccurs="1" maxOccurs="1"/>
+            </xs:sequence>
+            <xs:attribute name="sequential" type="xs:boolean" use="optional"/>
+            <xs:attribute name="continueParent" type="xs:boolean" use="optional"/>
+            <xs:attribute name="expression" type="xs:string" use="required"/>
+            <xs:attribute name="preservePayload" type="xs:boolean" use="optional"/>
+            <xs:attribute name="attachPath" type="xs:string" use="optional"/>
+            <xs:attribute name="id" type="xs:string" use="optional"/>
+            <xs:attribute name="description" type="xs:string" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>
+

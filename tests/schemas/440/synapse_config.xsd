@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  ~ Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+  ~
+  ~ All rights reserved. This program and the accompanying materials
+  ~ are made available under the terms of the Eclipse Public License v2.0
+  ~ which accompanies this distribution, and is available at
+  ~ http://www.eclipse.org/legal/epl-v20.html
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  ~
+  ~ Contributors:
+  ~     WSO2 LLC - support for WSO2 Micro Integrator Configuration
+  -->
+
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        elementFormDefault="qualified"
+        targetNamespace="http://ws.apache.org/ns/synapse"
+        xmlns="http://ws.apache.org/ns/synapse">
+
+    <xs:include schemaLocation="api.xsd"/>
+    <xs:include schemaLocation="proxy.xsd"/>
+    <xs:include schemaLocation="endpoint.xsd"/>
+    <xs:include schemaLocation="inbound.xsd"/>
+    <xs:include schemaLocation="local_entry.xsd"/>
+    <xs:include schemaLocation="messagestore.xsd"/>
+    <xs:include schemaLocation="messageprocessor.xsd"/>
+    <xs:include schemaLocation="sequence.xsd"/>
+    <xs:include schemaLocation="task.xsd"/>
+    <xs:include schemaLocation="template.xsd"/>
+    <xs:include schemaLocation="registry.xsd"/>
+
+    <xs:element name="definitions" type="Definition">
+        <xs:annotation>
+            <xs:documentation source="description">
+                The complete Synapse Configuration is enclosed within the &lt;definitions&gt;
+                element.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:complexType name="Definition">
+        <xs:annotation>
+            <xs:documentation source="description">
+                This complex type denotes the top level elements that can be there in a
+                &lt;definitions&gt; tag, basically all top level constructs of the synapse
+                configuration
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice minOccurs="1" maxOccurs="unbounded">
+            <xs:element ref="registry" minOccurs="0" maxOccurs="1"/>
+            <xs:element ref="api" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element ref="proxy" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element ref="endpoint" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element ref="inboundEndpoint" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element ref="localEntry" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element ref="messageStore" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element ref="messageProcessor" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element ref="sequence" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element ref="task" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element ref="template" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:choice>
+    </xs:complexType>
+</xs:schema>
+

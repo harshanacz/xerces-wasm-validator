@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+  ~ Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com).
+  ~
+  ~ All rights reserved. This program and the accompanying materials
+  ~ are made available under the terms of the Eclipse Public License v2.0
+  ~ which accompanies this distribution, and is available at
+  ~ http://www.eclipse.org/legal/epl-v20.html
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  ~
+  ~ Contributors:
+  ~     WSO2 LLC - support for WSO2 Micro Integrator Configuration
+  -->
+
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        xmlns:jaxb="http://java.sun.com/xml/ns/jaxb"
+        jaxb:version="2.0"
+        elementFormDefault="qualified"
+        targetNamespace="http://ws.apache.org/ns/synapse"
+        xmlns="http://ws.apache.org/ns/synapse">
+
+    <xs:include schemaLocation="../../endpoint.xsd" />
+    <xs:include schemaLocation="../mediators.xsd" />
+    <xs:include schemaLocation="../../misc/common.xsd" />
+
+    <xs:element name="scatter-gather">
+        <xs:annotation>
+            <xs:documentation source="description">
+                Broadcast the same message to multiple flows, and aggregate their responses back into a single message.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <!-- Aggregation Element -->
+                <xs:element name="aggregation">
+                    <xs:complexType>
+                        <xs:attribute name="expression" type="xs:string" use="required"/>
+                        <xs:attribute name="condition" type="xs:string" use="optional"/>
+                        <xs:attribute name="timeout" type="xs:string" use="optional"/>
+                        <xs:attribute name="min-messages" type="xs:string" use="optional"/>
+                        <xs:attribute name="max-messages" type="xs:string" use="optional"/>
+                    </xs:complexType>
+                </xs:element>
+
+                <!-- Sequence containing mediators -->
+                <xs:element name="sequence" type="sequence" minOccurs="2" maxOccurs="unbounded" />
+            </xs:sequence>
+
+            <!-- Root Element Attributes -->
+            <xs:attribute name="parallel-execution" type="xs:boolean" default="true"/>
+            <xs:attribute name="target" type="xs:string"/>
+            <xs:attribute name="target-variable" type="xs:string" use="optional"/>
+            <xs:attribute name="result-enclosing-element" type="xs:string" use="optional"/>
+            <xs:attribute name="result-content-type" use="required">
+                <xs:simpleType>
+                    <xs:restriction base="xs:string">
+                        <xs:enumeration value="JSON"/>
+                        <xs:enumeration value="XML"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>

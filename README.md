@@ -12,7 +12,7 @@ Xerces-C++ validation inherently splits into two main phases. The initial XSD pa
 
 This shows how Xerces processes schemas versus how it validates XML files.
 
-![Xerces Architecture](docs/images/base_diagram.png)
+<img src="docs/images/base_diagram.png" width="600" alt="Xerces Architecture">
 
 1. **One-Time Setup**: Raw XSD files are scanned, traversed, and compiled into DFA (Deterministic Finite Automata) structures. This is stored as the **XML Grammar Pool**.
 2. **Validation**: The raw XML input is streamed through the pre-compiled Grammar Pool rules using a transient `SAXParser` engine.

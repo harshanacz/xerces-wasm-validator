@@ -1,74 +1,75 @@
-# wso2-synapse-validator
+# High-Performance WASM XML Validator
 
-> XML/XSD validation engine for the WSO2 MI Language Server — Apache Xerces-C compiled to WebAssembly.
+> Blazing fast XML validator powered by Apache Xerces-C++ compiled to WebAssembly. 
+> Features in-memory XSD caching for zero-overhead, instant validation.
 
-Schema is compiled once per project into a persistent WASM grammar pool. Every `validate()` call reuses it — no re-parsing on keystrokes.
+## How it works (The Theory)
+
+Xerces-C++ validation inherently splits into two main phases. The initial XSD parsing and compilation is extremely expensive, while the actual validation is very fast.
+
+![Main Steps](docs/images/base.png)
+
+### The Validation Lifecycle
+
+Here is a deeper look into the Xerces architecture and how it processes schemas versus how it validates XML files.
+
+![Xerces Architecture](docs/images/base_diagram.png)
+
+1. **Heavy Phase (One-Time Setup)**: Raw XSD files are scanned, traversed, and compiled into highly optimized DFA (Deterministic Finite Automata) structures. This is stored as the **XML Grammar Pool**.
+2. **Light Phase (Every Keystroke)**: The raw XML input is streamed through the pre-compiled Grammar Pool rules using a transient `SAXParser` engine.
+
+## Our Architecture (The Caching Magic)
+
+We utilize WebAssembly linear memory to solve the performance issue of re-parsing heavy XSDs on every validation. 
+
+![Our Architecture](docs/images/our_archi.png)
+
+We completely separate the expensive state from the disposable state:
+- **Persistent State**: We compile the schema **once** and lock it inside an `XMLGrammarPool` in the WASM heap. Each workspace project maintains its own isolated pool.
+- **Transient Engine**: On every `validate()` call, we spin up a brand new, disposable `SAXParser` engine. It attaches to the existing project grammar pool, validates the XML instantly ($< 1\,\text{ms}$), and destroys itself to guarantee a perfectly clean state.
 
 ---
 
-## How it works
+## Quick example
 
-![Architecture diagram](docs/images/diagram2.png)
+```ts
+import { createProjectValidator } from "wso2-synapse-validator";
 
----
+// 1. Create a validator. This does the heavy lifting: parses XSDs & caches the Grammar Pool in WASM memory.
+const v = await createProjectValidator({
+  entry: "main.xsd",
+  files, // Map of { filename: xsdText }
+});
 
-### WASM Validation: Dynamic Connector Flow
+// 2. Validate. Extremely fast. It spins up a transient SAXParser and uses the cached pool.
+const result = await v.validate(`<log level="full"/>`);
+console.log(result.valid); // true / false
 
-**1. Server Init (Startup)**
-
-- **No connectors:** Load only the static core schemas (from the extension folder) and send to WASM.
-- **Connectors exist:** Load the static schemas, generate the `connectors.xsd` live in RAM, merge them, and send the full text map to WASM.
-
-**2. Live Updates (Add / Remove Connector)**
-
-- **The Trigger:** A user downloads a new connector or deletes one.
-- **The Action:** Instantly re-generate the `connectors.xsd` live in RAM to match the new state.
-- **The WASM Update:** Send the **full text map** (static + updated dynamic string) to WASM again. The C++ engine needs the whole map to successfully re-compile the locked rules.
-
----
-
-## Multiple projects
-
-Each project gets its own grammar pool in WASM memory. They share one WASM instance but never share state.
-
+// 3. Destroy to free the C++ allocations from WASM memory to prevent leaks
+v.destroy();
 ```
-WASM instance (one, shared)
-│
-├── ProjectValidator [workspace A]  — MI 4.3.0, no connectors
-│     pool: [4.3.0 grammar]
-│
-├── ProjectValidator [workspace B]  — MI 4.3.0, s3 connector
-│     pool: [4.3.0 + s3 grammar]
-│
-├── ProjectValidator [workspace C]  — MI 4.4.0, no connectors
-│     pool: [4.4.0 grammar]
-│
-└── ProjectValidator [workspace D]  — MI 4.4.0, s3 + http connectors
-      pool: [4.4.0 + s3 + http grammar]
-```
 
 ---
 
-## Setup
+## Setup & Build
 
-Requires Git, Node.js, and an internet connection for the first build. Everything else (Emscripten, Xerces-C) is fetched automatically.
+Requires Git, Node.js, and an internet connection. Emscripten and Xerces-C are fetched automatically.
 
 ```bash
+# Clone the repository
 git clone --recurse-submodules https://github.com/harshanacz/wso2-synapse-validator
+
+# Install Node dependencies
 npm install
-npm run build:wasm   # installs Emscripten automatically on first run
-npm test
-```
 
-> **Note:** `npm run build:wasm` downloads the Emscripten toolchain (~500 MB) into `tools/emsdk/` on the first run. Subsequent builds skip this step.
+# Compile Xerces-C → wasm/xerces_validator.{js,wasm}
+# (Downloads the Emscripten toolchain on first run)
+npm run build:wasm   
 
----
+# Compile TypeScript → dist/
+npm run build:ts     
 
-## Build
-
-```bash
-npm run build:wasm   # compile Xerces-C → wasm/xerces_validator.{js,wasm}
-npm run build:ts     # compile TypeScript → dist/
+# Run the test suite
 npm test
 ```
 

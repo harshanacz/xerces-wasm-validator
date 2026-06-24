@@ -56,7 +56,7 @@ Requires Git, Node.js, and an internet connection. Emscripten and Xerces-C are f
 
 ```bash
 # Clone the repository
-git clone --recurse-submodules https://github.com/harshanacz/wso2-synapse-validator
+git clone --recurse-submodules https://github.com/harshanacz/xerces-wasm-validator
 
 # Install Node dependencies
 npm install
@@ -77,4 +77,4 @@ npm test
 ## License
 
 MIT — see [LICENSE](./LICENSE).  
-Includes Apache Xerces-C — see [native/xerces-c/LICENSE](native/xerces-c/LICENSE).
+Includes Apache Xerces-C++ (Apache-2.0) — see [LICENSE-APACHE](./LICENSE-APACHE) and [NOTICE](./NOTICE).

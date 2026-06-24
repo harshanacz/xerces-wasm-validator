@@ -7,7 +7,8 @@
   "files": [
     "dist",
     "wasm",
-    "NOTICE"
+    "NOTICE",
+    "LICENSE-APACHE"
   ],
   "engines": {
     "node": ">=18"

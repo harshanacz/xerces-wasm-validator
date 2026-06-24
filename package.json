@@ -1,14 +1,39 @@
 {
-  "name": "xerces-wasm-validator",
-  "version": "0.1.0",
+  "name": "xerces-wasm",
+  "version": "2.0.0",
   "description": "Fast XML schema validator using Apache Xerces-C++ compiled to WebAssembly with in-memory XSD caching",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "wasm",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harshanacz/xerces-wasm-validator.git"
+  },
+  "keywords": [
+    "xml",
+    "xsd",
+    "schema",
+    "validation",
+    "xerces",
+    "wasm",
+    "webassembly"
+  ],
+  "author": "harshanacz",
+  "license": "MIT",
   "scripts": {
     "build:wasm": "bash scripts/build-wasm.sh",
     "build:ts": "tsc",
     "build": "npm run build:wasm && npm run build:ts",
+    "prepublishOnly": "npm run build:ts && npm test",
     "test": "jest"
   },
-  "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.0.0",
     "@types/node": "^20.0.0",

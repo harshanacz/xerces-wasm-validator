@@ -32,7 +32,7 @@ We separate the state:
 ## Quick example
 
 ```ts
-import { createProjectValidator } from "wso2-synapse-validator";
+import { createProjectValidator } from "xerces-wasm";
 
 // 1. Create a validator. This parses XSDs and caches the Grammar Pool in WASM memory.
 const v = await createProjectValidator({

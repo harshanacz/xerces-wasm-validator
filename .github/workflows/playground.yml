@@ -1,0 +1,19 @@
+name: Playground
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Link Playground
+    runs-on: ubuntu-latest
+    environment:
+      name: Playground
+      url: https://harshanacz.github.io/xerces-playground/
+    steps:
+      - name: Deploy Announcement
+        run: |
+          echo "Playground is running at https://harshanacz.github.io/xerces-playground/"

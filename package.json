@@ -13,6 +13,10 @@
   "engines": {
     "node": ">=18"
   },
+  "homepage": "https://github.com/harshanacz/xerces-wasm-validator#readme",
+  "bugs": {
+    "url": "https://github.com/harshanacz/xerces-wasm-validator/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/harshanacz/xerces-wasm-validator.git"

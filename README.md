@@ -48,6 +48,10 @@ A comprehensive, publication-grade benchmark comparing **`xerces-wasm`** against
 - **Main-Thread Execution:** `xerces-wasm` executes synchronously on the main thread for zero-copy memory access. For heavy batch processing of multi-megabyte payloads in server environments, offloading validation to worker threads or a background queue is recommended.
 
 
+## Playground
+
+Try the interactive [Browser playground for xerces-wasm](https://harshanacz.github.io/xerces-playground/) to run XML validation directly in your browser. The source code is available on [GitHub](https://github.com/harshanacz/xerces-playground).
+
 ## How it works
 
 Xerces-C++ validation inherently splits into two main phases. The initial XSD parsing and compilation takes time, while the validation is fast.

@@ -158,15 +158,38 @@ static std::vector<DiagnosticEntry> runSyntaxPass(const std::string& xmlText) {
     return handler.entries;
 }
 
-// Extract targetNamespace value from XSD text (returns "" for no-namespace schemas)
+// Extract the targetNamespace value from XSD text (returns "" for no-namespace
+// schemas).  Accepts both single- and double-quoted attribute values and
+// tolerates whitespace around '=', e.g. targetNamespace = 'urn:x'.
 static std::string extractTargetNamespace(const std::string& xsdText) {
-    const std::string attr = "targetNamespace=\"";
-    size_t pos = xsdText.find(attr);
-    if (pos == std::string::npos) return "";
-    pos += attr.size();
-    size_t end = xsdText.find('"', pos);
-    if (end == std::string::npos) return "";
-    return xsdText.substr(pos, end - pos);
+    auto isXmlSpace = [](char c) {
+        return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+    };
+
+    const std::string attr = "targetNamespace";
+    for (size_t pos = xsdText.find(attr); pos != std::string::npos;
+         pos = xsdText.find(attr, pos + attr.size())) {
+        // Require a standalone attribute name: the char before must be
+        // whitespace (or the match starts the text) so we don't match a
+        // substring like "fooTargetNamespace".
+        if (pos != 0 && !isXmlSpace(xsdText[pos - 1])) continue;
+
+        size_t cur = pos + attr.size();
+        while (cur < xsdText.size() && isXmlSpace(xsdText[cur])) cur++;
+        if (cur >= xsdText.size() || xsdText[cur] != '=') continue;
+        cur++;  // past '='
+        while (cur < xsdText.size() && isXmlSpace(xsdText[cur])) cur++;
+        if (cur >= xsdText.size()) continue;
+
+        const char quote = xsdText[cur];
+        if (quote != '"' && quote != '\'') continue;
+        cur++;  // past opening quote
+
+        const size_t end = xsdText.find(quote, cur);
+        if (end == std::string::npos) return "";
+        return xsdText.substr(cur, end - cur);
+    }
+    return "";
 }
 
 // Pass 2 — schema validation

@@ -11,7 +11,15 @@ export interface ValidationResult {
   schemaErrors: Diagnostic[];
 }
 
-export type XmlInput = string | Buffer | Blob | File;
+// Opt-in remote source — a bare string is always treated as raw XML/XSD text,
+// never as something to fetch. Wrap a URL in this shape to fetch it instead.
+export interface UrlInput {
+  url:        string;
+  timeoutMs?: number;               // default 10_000
+  headers?:   Record<string, string>;
+}
+
+export type XmlInput = string | Buffer | Blob | File | UrlInput;
 
 // One-off schema input — single XSD or a bundle for xs:include / xs:import
 export interface SchemaBundle {

@@ -4,6 +4,17 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Opt-in fetching of XML/XSD from a URL. Pass `{ url, timeoutMs?, headers? }` anywhere
+  an `XmlInput`/`XsdInput` is accepted (`validate()`, `createProjectValidator()`
+  `files`, schema bundle `imports`) to have it fetched instead of read from a string.
+  A plain string is still always treated as raw content — fetching only happens when
+  a `{ url }` object is passed explicitly. Requests default to a 10s timeout
+  (`timeoutMs`) and raise a clear error on a non-OK response or timeout. Implemented
+  with the platform `fetch`, so it works unmodified in both Node (>=18) and browsers.
+
 ## [2.0.0] - 2026-06-24
 
 Full rewrite. v2 is a complete re-architecture with a new API — v1.x code will not

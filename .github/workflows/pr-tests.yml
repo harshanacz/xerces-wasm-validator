@@ -1,0 +1,236 @@
+name: PR Tests
+
+# Comment-triggered test runs on pull requests:
+#   "run all tests" -> full jest suite on every supported Node.js version
+#   "run PR tests"  -> only the test files added/changed by the PR (Node 20)
+#
+# Note: issue_comment workflows always execute the version of this file that
+# lives on the default branch, so changes here take effect once merged to main.
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  # Parses the comment and decides what to run. Never checks out or executes PR code.
+  prepare:
+    name: Parse command
+    if: >
+      github.event.issue.pull_request &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      (contains(github.event.comment.body, 'run all tests') || contains(github.event.comment.body, 'run pr tests'))
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+    outputs:
+      mode: ${{ steps.parse.outputs.mode }}
+      sha: ${{ steps.parse.outputs.sha }}
+      files: ${{ steps.parse.outputs.files }}
+      run_tests: ${{ steps.parse.outputs.run_tests }}
+    steps:
+      - name: Parse comment and resolve PR
+        id: parse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.issue.number }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          set -euo pipefail
+
+          body=$(printf '%s' "$COMMENT_BODY" | tr '[:upper:]' '[:lower:]' | tr -d '\r')
+          mode=""
+          if [[ "$body" =~ ^[[:space:]]*run[[:space:]]+all[[:space:]]+tests[[:space:]]*[.!]?[[:space:]]*$ ]]; then
+            mode="all"
+          elif [[ "$body" =~ ^[[:space:]]*run[[:space:]]+pr[[:space:]]+tests[[:space:]]*[.!]?[[:space:]]*$ ]]; then
+            mode="pr"
+          fi
+
+          if [ -z "$mode" ]; then
+            echo "Comment is not an exact test command, nothing to do."
+            exit 0
+          fi
+
+          gh api -X POST "repos/$REPO/issues/comments/$COMMENT_ID/reactions" -f content=eyes >/dev/null || true
+
+          sha=$(gh api "repos/$REPO/pulls/$PR" --jq .head.sha)
+          files=""
+          run_tests="true"
+
+          if [ "$mode" = "pr" ]; then
+            # Only added/modified/renamed test files that still exist in the PR head.
+            # Names come from the PR author, so they are validated against a strict pattern.
+            files=$(gh api --paginate "repos/$REPO/pulls/$PR/files" \
+                      --jq '.[] | select(.status != "removed") | .filename' \
+                    | grep -E '^([A-Za-z0-9_.-]+/)*tests/([A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.test\.ts$' \
+                    | tr '\n' ' ' || true)
+            files="${files% }"
+            if [ -z "$files" ]; then
+              run_tests="false"
+            fi
+          fi
+
+          {
+            echo "mode=$mode"
+            echo "sha=$sha"
+            echo "files=$files"
+            echo "run_tests=$run_tests"
+          } >> "$GITHUB_OUTPUT"
+
+  # The tests import wasm/xerces_validator.js, which is gitignored, so build it once
+  # and share it with the test jobs (the output does not depend on the Node version).
+  build-wasm:
+    name: Build WASM
+    needs: prepare
+    if: needs.prepare.outputs.mode != '' && needs.prepare.outputs.run_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          submodules: true
+          persist-credentials: false
+
+      - name: Compute toolchain cache key
+        id: key
+        run: |
+          echo "subs=$(git ls-tree HEAD native/xerces-c tools/emsdk | awk '{print $3}' | tr '\n' '-')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Emscripten and Xerces-C build
+        uses: actions/cache@v4
+        with:
+          path: |
+            tools/emsdk/upstream
+            tools/emsdk/node
+            tools/emsdk/python
+            tools/emsdk/.emscripten
+            tools/emsdk/.emscripten_cache
+            tools/emsdk/downloads
+            native/xerces-c/build-wasm
+          key: wasm-toolchain-${{ runner.os }}-${{ steps.key.outputs.subs }}${{ hashFiles('scripts/build-wasm.sh') }}
+
+      - name: Build WASM
+        run: bash scripts/build-wasm.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wasm
+          path: wasm/
+          if-no-files-found: error
+          retention-days: 1
+
+  test-all:
+    name: All tests (Node ${{ matrix.node }})
+    needs: [prepare, build-wasm]
+    if: needs.prepare.outputs.mode == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wasm
+          path: wasm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+      - run: npx jest --ci
+
+  test-pr:
+    name: PR test files (Node 20)
+    needs: [prepare, build-wasm]
+    if: needs.prepare.outputs.mode == 'pr' && needs.prepare.outputs.run_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wasm
+          path: wasm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run test files changed by the PR
+        env:
+          TEST_FILES: ${{ needs.prepare.outputs.files }}
+        run: |
+          echo "Running: $TEST_FILES"
+          # shellcheck disable=SC2086
+          npx jest --ci --runTestsByPath $TEST_FILES
+
+  # Posts the outcome back on the PR. Does not run PR code.
+  report:
+    name: Report result
+    needs: [prepare, build-wasm, test-all, test-pr]
+    if: always() && needs.prepare.outputs.mode != ''
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+      statuses: write
+    steps:
+      - name: Comment result and set commit status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.issue.number }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+          MODE: ${{ needs.prepare.outputs.mode }}
+          RUN_TESTS: ${{ needs.prepare.outputs.run_tests }}
+          FILES: ${{ needs.prepare.outputs.files }}
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          if [ "$MODE" = "all" ]; then label="all tests (Node 18, 20, 22, 24)"; else label="PR test files"; fi
+
+          if [ "$RUN_TESTS" != "true" ]; then
+            state="success"
+            msg="ℹ️ **run PR tests**: this PR adds or changes no test files (\`tests/**/*.test.ts\`), so nothing was run. Comment \`run all tests\` to run the full suite."
+          elif [[ " $RESULTS " == *" failure "* || " $RESULTS " == *" cancelled "* ]]; then
+            state="failure"
+            msg="❌ **$label** failed on \`${SHA:0:7}\`. [See the run]($RUN_URL)."
+          else
+            state="success"
+            msg="✅ **$label** passed on \`${SHA:0:7}\`. [See the run]($RUN_URL)."
+            if [ "$MODE" = "pr" ]; then msg="$msg"$'\n\n'"Test files: \`$FILES\`"; fi
+          fi
+
+          gh pr comment "$PR" --repo "$REPO" --body "$msg"
+          gh api -X POST "repos/$REPO/statuses/$SHA" \
+            -f state="$state" \
+            -f context="PR Tests ($MODE)" \
+            -f description="$label: $state" \
+            -f target_url="$RUN_URL" >/dev/null

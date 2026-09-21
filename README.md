@@ -96,6 +96,28 @@ v.destroy();
 
 ---
 
+## Loading schemas/documents from a URL
+
+Any place an XML or XSD input is accepted, you can pass `{ url }` instead of a
+string to have it fetched. This is opt-in — a plain string is always treated as
+raw content, never as something to fetch:
+
+```ts
+import { validate } from "xerces-wasm";
+
+const result = await validate(
+  xmlString,
+  { url: "https://example.com/schema.xsd", timeoutMs: 5000 }
+);
+```
+
+It works with `createProjectValidator()` files and schema bundle `imports` too.
+`timeoutMs` defaults to 10s; a failed or slow fetch throws a descriptive error
+instead of hanging. It's built on the platform `fetch`, so it runs unmodified
+in Node (>=18) and in browsers.
+
+---
+
 ## Setup & Build
 
 Requires Git, Node.js, and an internet connection. Emscripten and Xerces-C are fetched automatically.

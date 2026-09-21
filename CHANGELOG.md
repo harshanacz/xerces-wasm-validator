@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.0.2] - 2026-09-21
+
+### Changed
+- Rewrote the README: added an API reference, restructured the sections, and
+  corrected the memory comparison in the benchmark table.
+
 ## [2.0.0] - 2026-06-24
 
 Full rewrite. v2 is a complete re-architecture with a new API — v1.x code will not

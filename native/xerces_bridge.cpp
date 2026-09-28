@@ -158,28 +158,117 @@ static std::vector<DiagnosticEntry> runSyntaxPass(const std::string& xmlText) {
     return handler.entries;
 }
 
+// Append a Unicode code point to out as UTF-8
+static void appendUtf8(std::string& out, unsigned long cp) {
+    if (cp < 0x80) {
+        out += static_cast<char>(cp);
+    } else if (cp < 0x800) {
+        out += static_cast<char>(0xC0 | (cp >> 6));
+        out += static_cast<char>(0x80 | (cp & 0x3F));
+    } else if (cp < 0x10000) {
+        out += static_cast<char>(0xE0 | (cp >> 12));
+        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+        out += static_cast<char>(0x80 | (cp & 0x3F));
+    } else {
+        out += static_cast<char>(0xF0 | (cp >> 18));
+        out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+        out += static_cast<char>(0x80 | (cp & 0x3F));
+    }
+}
+
+// Normalize a raw attribute value the way an XML parser does: expand the
+// predefined and character entity references, and map tab/CR/LF to spaces.
+static std::string normalizeAttrValue(const std::string& raw) {
+    std::string out;
+    for (size_t i = 0; i < raw.size(); ++i) {
+        char c = raw[i];
+        if (c == '\t' || c == '\n' || c == '\r') { out += ' '; continue; }
+        if (c != '&') { out += c; continue; }
+        size_t semi = raw.find(';', i + 1);
+        if (semi == std::string::npos) { out += c; continue; }
+        std::string ref = raw.substr(i + 1, semi - i - 1);
+        if      (ref == "amp")  out += '&';
+        else if (ref == "lt")   out += '<';
+        else if (ref == "gt")   out += '>';
+        else if (ref == "quot") out += '"';
+        else if (ref == "apos") out += '\'';
+        else if (ref.size() > 1 && ref[0] == '#') {
+            bool hex = ref[1] == 'x';
+            std::string digits = ref.substr(hex ? 2 : 1);
+            if (digits.empty() || digits.find_first_not_of(hex ? "0123456789abcdefABCDEF" : "0123456789") != std::string::npos) {
+                out += c; continue;
+            }
+            appendUtf8(out, std::stoul(digits, nullptr, hex ? 16 : 10));
+        } else { out += c; continue; }
+        i = semi;
+    }
+    return out;
+}
+
 // Extract targetNamespace value from XSD text (returns "" for no-namespace schemas).
-// Accepts either quote character and optional whitespace around '=', as XML allows.
+// Only the root element's start tag is inspected, so comments, processing
+// instructions and the DOCTYPE before it are skipped. Either quote character and
+// whitespace around '=' are accepted, and the value is entity-decoded, as XML allows.
 static std::string extractTargetNamespace(const std::string& xsdText) {
-    const std::string attr = "targetNamespace";
     auto isSpace = [](char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; };
-    size_t pos = 0;
-    while ((pos = xsdText.find(attr, pos)) != std::string::npos) {
-        // Require a whitespace boundary before the name so e.g. "xyztargetNamespace" is skipped
-        bool boundary = pos > 0 && isSpace(xsdText[pos - 1]);
-        size_t i = pos + attr.size();
-        pos = i;
-        if (!boundary) continue;
-        while (i < xsdText.size() && isSpace(xsdText[i])) ++i;
-        if (i >= xsdText.size() || xsdText[i] != '=') continue;
+    const size_t n = xsdText.size();
+
+    // Find the root element's start tag
+    size_t i = 0;
+    while (true) {
+        i = xsdText.find('<', i);
+        if (i == std::string::npos || i + 1 >= n) return "";
+        if (xsdText.compare(i, 4, "<!--") == 0) {
+            size_t e = xsdText.find("-->", i + 4);
+            if (e == std::string::npos) return "";
+            i = e + 3;
+        } else if (xsdText[i + 1] == '?') {
+            size_t e = xsdText.find("?>", i + 2);
+            if (e == std::string::npos) return "";
+            i = e + 2;
+        } else if (xsdText[i + 1] == '!') {
+            // DOCTYPE, possibly with an internal subset in [...]
+            size_t j = i + 2;
+            int depth = 0;
+            char quote = 0;
+            for (; j < n; ++j) {
+                char c = xsdText[j];
+                if (quote) { if (c == quote) quote = 0; }
+                else if (c == '"' || c == '\'') quote = c;
+                else if (c == '[') ++depth;
+                else if (c == ']') --depth;
+                else if (c == '>' && depth <= 0) break;
+            }
+            if (j >= n) return "";
+            i = j + 1;
+        } else {
+            break;
+        }
+    }
+
+    // Skip the element name
+    i += 1;
+    while (i < n && !isSpace(xsdText[i]) && xsdText[i] != '>' && xsdText[i] != '/') ++i;
+
+    // Walk the attributes of the root start tag
+    while (i < n) {
+        while (i < n && isSpace(xsdText[i])) ++i;
+        if (i >= n || xsdText[i] == '>' || xsdText[i] == '/') return "";
+        size_t nameStart = i;
+        while (i < n && !isSpace(xsdText[i]) && xsdText[i] != '=' && xsdText[i] != '>' && xsdText[i] != '/') ++i;
+        std::string name = xsdText.substr(nameStart, i - nameStart);
+        while (i < n && isSpace(xsdText[i])) ++i;
+        if (i >= n || xsdText[i] != '=') return "";
         ++i;
-        while (i < xsdText.size() && isSpace(xsdText[i])) ++i;
-        if (i >= xsdText.size()) return "";
+        while (i < n && isSpace(xsdText[i])) ++i;
+        if (i >= n || (xsdText[i] != '"' && xsdText[i] != '\'')) return "";
         char quote = xsdText[i];
-        if (quote != '"' && quote != '\'') continue;
-        size_t end = xsdText.find(quote, i + 1);
-        if (end == std::string::npos) return "";
-        return xsdText.substr(i + 1, end - i - 1);
+        size_t valEnd = xsdText.find(quote, i + 1);
+        if (valEnd == std::string::npos) return "";
+        if (name == "targetNamespace")
+            return normalizeAttrValue(xsdText.substr(i + 1, valEnd - i - 1));
+        i = valEnd + 1;
     }
     return "";
 }

@@ -5,8 +5,9 @@ import { validate, createProjectValidator } from "../src/index";
 
 const NS = "urn:example:ns";
 
-function schema(attr: string): string {
+function schema(attr: string, preamble = ""): string {
   return `<?xml version="1.0"?>
+${preamble}
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
            ${attr}
            elementFormDefault="qualified">
@@ -17,15 +18,16 @@ function schema(attr: string): string {
 const VALID_XML   = `<root xmlns="${NS}">hello</root>`;
 const INVALID_XML = `<root xmlns="${NS}"><child/></root>`;
 
-const VARIANTS: Array<[string, string]> = [
+const VARIANTS: Array<[string, string, string?]> = [
   ["double quotes",          `targetNamespace="${NS}"`],
   ["single quotes",          `targetNamespace='${NS}'`],
   ["whitespace around '='",  `targetNamespace = '${NS}'`],
+  ["decoy in a leading comment", `targetNamespace='${NS}'`, `<!-- targetNamespace='urn:decoy' -->`],
 ];
 
 describe("targetNamespace auto-detection", () => {
-  describe.each(VARIANTS)("%s", (_label, attr) => {
-    const xsd = schema(attr);
+  describe.each(VARIANTS)("%s", (_label, attr, preamble) => {
+    const xsd = schema(attr, preamble);
 
     it("validate() accepts a matching document", async () => {
       const res = await validate(VALID_XML, xsd);

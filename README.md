@@ -20,6 +20,12 @@
 
 ---
 
+## Try it in your browser
+
+[![xerces-wasm playground: an XSD on the left, an XML document on the right, validated live](docs/images/playground.png)](https://harshanacz.github.io/xerces-playground/)
+
+Paste or drop your own XSD and XML into the **[playground](https://harshanacz.github.io/xerces-playground/)** and see the Xerces diagnostics instantly. It runs entirely in your browser, so nothing is uploaded.
+
 ## Overview
 
 `xerces-wasm` brings the validation engine of Apache Xerces-C++ to Node.js and the browser. Schemas are compiled once into an in-memory **grammar pool** and reused across every subsequent validation, which removes the per-call schema parsing cost that dominates most WebAssembly XML validators.

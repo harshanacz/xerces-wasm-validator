@@ -155,6 +155,11 @@ Xerces-C++ validation has two distinct phases: compiling schemas, which is expen
 - **Persistent state.** Each project compiles its schemas once into a locked `XMLGrammarPool` in the WASM heap, isolated from all other projects.
 - **Transient engine.** Every `validate()` call creates a disposable `SAXParser`, attaches it to the project's pool, validates, and destroys itself.
 
+## Used by
+
+- [**Schema-Aware XML**](https://marketplace.visualstudio.com/items?itemName=harshanacz.xml-language-client), a VS Code extension for XML. Its XSD validation is powered by `xerces-wasm`, through [`xml-language-service`](https://github.com/harshanacz/xml-language-service) and [`xml-language-server`](https://github.com/harshanacz/xml-language-server).
+- [`xml-language-service`](https://www.npmjs.com/package/xml-language-service), an editor-agnostic XML language service that validates against XSDs with this package.
+
 ## Playground
 
 An interactive [browser playground](https://harshanacz.github.io/xerces-playground/) is available for trying the validator without installing anything. Source: [xerces-playground](https://github.com/harshanacz/xerces-playground).

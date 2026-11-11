@@ -28,6 +28,19 @@ export function getModule(): Promise<any> {
   return _module ?? loadModule({});
 }
 
+// The loader createProjectValidator() uses. The Node entry points it at its own
+// exported getModule, as in 2.0.2, so code that replaces that export (a test
+// double, for example) changes what createProjectValidator() loads as well.
+let projectModuleLoader: () => Promise<any> = getModule;
+
+export function setProjectModuleLoader(loader: () => Promise<any>): void {
+  projectModuleLoader = loader;
+}
+
+export function loadModuleForProject(): Promise<any> {
+  return projectModuleLoader();
+}
+
 /**
  * Loads the WebAssembly module with the given options. Optional: without it the
  * module loads on first use and looks for `xerces_validator.wasm` next to the

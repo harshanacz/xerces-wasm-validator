@@ -4,6 +4,21 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- A browser build. Bundlers that target the browser pick it through the `browser`
+  field in `package.json`. It has the same API without `validateFiles()` and imports
+  no Node.js built-in.
+- `initialize({ wasmBinary?, locateFile? })` to load the WebAssembly module ahead of
+  time and to choose where `xerces_validator.wasm` comes from.
+
+### Fixed
+- `validate()` and `toText()` no longer throw a `ReferenceError` where there is no
+  global `Buffer`.
+- Concurrent first calls now share one load of the WebAssembly module instead of
+  each starting their own.
+
 ## [2.0.2] - 2026-09-21
 
 ### Changed

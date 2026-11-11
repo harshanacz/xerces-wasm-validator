@@ -45,7 +45,7 @@ Paste or drop your own XSD and XML into the **[playground](https://harshanacz.gi
 npm install xerces-wasm
 ```
 
-Requires Node.js 18 or later.
+Requires Node.js 18 or later. It also runs in browsers and web workers; see [Browsers and web workers](#browsers-and-web-workers).
 
 ## Quick Start
 
@@ -98,7 +98,18 @@ One-off validation. The schema is parsed on every call, so prefer `createProject
 
 ### `validateFiles(xmlPath, xsd)`
 
-Convenience wrapper that reads the XML and XSD from disk before validating.
+Convenience wrapper that reads the XML and XSD from disk before validating. Node.js only.
+
+### `initialize(options?)`
+
+Loads the WebAssembly module ahead of time and says where its file comes from. Calling it is optional: without it, the module loads on the first validation and looks for `xerces_validator.wasm` next to the script.
+
+| Option       | Description                                                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------- |
+| `wasmBinary` | The contents of `xerces_validator.wasm` as an `ArrayBuffer` or `Uint8Array`. Nothing is read or fetched. |
+| `locateFile` | `(file, scriptDirectory) => string`. Returns the path or URL to load `xerces_validator.wasm` from.      |
+
+Call it once, before any validation. It rejects if the module is already loaded or loading. If loading fails, the next call tries again.
 
 ### `ValidationResult`
 
@@ -118,6 +129,26 @@ interface Diagnostic {
 ```
 
 `XmlInput` accepts `string`, `Buffer`, `Blob`, or `File`.
+
+## Browsers and web workers
+
+A bundler that targets the browser picks a browser build of the package on its own, through the `browser` field in `package.json`. It has the same API without `validateFiles()`, and it imports no Node.js built-in.
+
+The WebAssembly file is not part of your bundle. Either copy `node_modules/xerces-wasm/wasm/xerces_validator.wasm` next to the bundled script, where the module fetches it by default, or tell the module where it is:
+
+```ts
+import { initialize, validate } from "xerces-wasm";
+
+// Load it from a URL of your choice...
+await initialize({ locateFile: (file) => `/assets/${file}` });
+
+// ...or hand over bytes you already have.
+// await initialize({ wasmBinary: await (await fetch(wasmUrl)).arrayBuffer() });
+
+const result = await validate(xmlText, xsdText);
+```
+
+In a web worker, "next to the script" means next to the worker script. The browser build is tested with [esbuild](https://esbuild.github.io/); other bundlers need to honor the `browser` field.
 
 ## Performance
 

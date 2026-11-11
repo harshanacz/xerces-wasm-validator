@@ -107,7 +107,7 @@ Loads the WebAssembly module ahead of time and says where its file comes from. C
 | Option       | Description                                                                                             |
 | ------------ | ------------------------------------------------------------------------------------------------------- |
 | `wasmBinary` | The contents of `xerces_validator.wasm` as an `ArrayBuffer` or `Uint8Array`. Nothing is read or fetched. |
-| `locateFile` | `(file, scriptDirectory) => string`. Returns the path or URL to load `xerces_validator.wasm` from.      |
+| `locateFile` | `(file, scriptDirectory) => string`. Returns where to load `xerces_validator.wasm` from: a URL in a browser or web worker, which is fetched; a file path or `file:` URL on Node.js, which is read from disk (an `http(s)` URL does not work there). |
 
 Call it once, before any validation. It rejects if the module is already loaded or loading. If loading fails, the next call tries again.
 

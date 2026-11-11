@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { pathToFileURL } from "url";
 
 const WASM_PATH = path.join(__dirname, "..", "wasm", "xerces_validator.wasm");
 const XSD = `<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"><xs:element name="n" type="xs:int"/></xs:schema>`;
@@ -50,6 +51,12 @@ describe("initialize", () => {
     const locateFile = jest.fn((_file: string, _scriptDirectory: string) => WASM_PATH);
     await api.initialize({ locateFile });
     expect(locateFile).toHaveBeenCalledWith("xerces_validator.wasm", expect.any(String));
+    await expectValidatorWorks(api);
+  });
+
+  it("on Node, accepts a file: URL from locateFile", async () => {
+    const api = freshApi();
+    await api.initialize({ locateFile: () => pathToFileURL(WASM_PATH).href });
     await expectValidatorWorks(api);
   });
 

@@ -2,7 +2,7 @@ import { readFile } from "fs/promises";
 import { getModule } from "./core";
 import type { ValidationResult } from "./types";
 
-export { getModule, toText, validate } from "./core";
+export { getModule, initialize, toText, validate } from "./core";
 
 // ── File-based validation (Node only) ─────────────────────────────────────────
 
@@ -46,6 +46,7 @@ export type {
   ProjectFiles,
   ProjectValidatorOptions,
   ProjectValidator,
+  InitializeOptions,
 } from "./types";
 
 export { createProjectValidator } from "./project-validator";

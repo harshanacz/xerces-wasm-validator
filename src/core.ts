@@ -3,15 +3,44 @@
 
 // @ts-ignore
 import XercesModule from "../wasm/xerces_validator.js";
-import type { XmlInput, XsdInput, ValidationResult } from "./types";
+import type { XmlInput, XsdInput, ValidationResult, InitializeOptions } from "./types";
 
 // ── WASM module singleton ─────────────────────────────────────────────────────
 
-let _module: any = null;
+let _module: Promise<any> | null = null;
 
-export async function getModule(): Promise<any> {
-  if (!_module) _module = await XercesModule();
-  return _module;
+function loadModule(options: InitializeOptions): Promise<any> {
+  const moduleArg: Record<string, unknown> = {};
+  if (options.wasmBinary) moduleArg.wasmBinary = options.wasmBinary;
+  if (options.locateFile) moduleArg.locateFile = options.locateFile;
+
+  const pending: Promise<any> = XercesModule(moduleArg);
+  _module = pending;
+  // A failed load must not stick: the next call tries again.
+  pending.catch(() => {
+    if (_module === pending) _module = null;
+  });
+  return pending;
+}
+
+/** Returns the WebAssembly module, loading it on first use. */
+export function getModule(): Promise<any> {
+  return _module ?? loadModule({});
+}
+
+/**
+ * Loads the WebAssembly module with the given options. Optional: without it the
+ * module loads on first use and looks for `xerces_validator.wasm` next to the
+ * script. Call it once, before any validation, to say where the file comes from.
+ */
+export async function initialize(options: InitializeOptions = {}): Promise<void> {
+  if (_module) {
+    throw new Error(
+      "xerces-wasm: the WebAssembly module is already loaded or loading. " +
+      "Call initialize() once, before any validation."
+    );
+  }
+  await loadModule(options);
 }
 
 // Buffer is a Node global. A browser has none, and nothing there can be a Buffer.

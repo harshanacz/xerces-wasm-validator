@@ -38,3 +38,12 @@ export interface ProjectValidator {
   reload(files: ProjectFiles): Promise<void>;
   destroy(): void;
 }
+
+// How the WebAssembly module is loaded. See initialize().
+export interface InitializeOptions {
+  // The contents of xerces_validator.wasm. When given, the file is not read or fetched.
+  wasmBinary?: ArrayBuffer | Uint8Array;
+  // Returns the path or URL of a file the module needs. `file` is
+  // "xerces_validator.wasm"; `scriptDirectory` is where the module would look by default.
+  locateFile?: (file: string, scriptDirectory: string) => string;
+}

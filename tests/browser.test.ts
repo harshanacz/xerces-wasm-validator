@@ -123,6 +123,25 @@ describe("browser entry", () => {
     expect(fetched).toEqual(["https://page.test/js/xerces_validator.wasm"]);
   });
 
+  it("in an ES module page, where document.currentScript is null, needs locateFile to find the file", async () => {
+    const fetched: string[] = [];
+    const scope = windowScope("https://page.test/js/app.js", fetched);
+    scope.document = { currentScript: null };
+    const api = load(code, scope);
+    await expectValidatorWorks(api);
+    // With no script URL the module has no folder to look in: the bare file name
+    // resolves against the page, not against the bundle.
+    expect(fetched).toEqual(["xerces_validator.wasm"]);
+
+    const withLocate: string[] = [];
+    const moduleScope = windowScope("https://page.test/js/app.js", withLocate);
+    moduleScope.document = { currentScript: null };
+    const fixed = load(code, moduleScope);
+    await fixed.initialize({ locateFile: (file: string) => `https://page.test/assets/${file}` });
+    await expectValidatorWorks(fixed);
+    expect(withLocate).toEqual(["https://page.test/assets/xerces_validator.wasm"]);
+  });
+
   it("fetches the file once, however many validations run", async () => {
     const fetched: string[] = [];
     const api = load(code, workerScope("https://host.test/w.js", fetched));

@@ -102,7 +102,7 @@ Convenience wrapper that reads the XML and XSD from disk before validating. Node
 
 ### `initialize(options?)`
 
-Loads the WebAssembly module ahead of time and says where its file comes from. Calling it is optional: without it, the module loads on the first validation and looks for `xerces_validator.wasm` next to the script.
+Loads the WebAssembly module ahead of time and says where its file comes from. Calling it is optional: without it, the module loads on the first validation and looks for `xerces_validator.wasm` next to the script. In a browser that default does not always work; see [Browsers and web workers](#browsers-and-web-workers).
 
 | Option       | Description                                                                                             |
 | ------------ | ------------------------------------------------------------------------------------------------------- |
@@ -134,13 +134,22 @@ interface Diagnostic {
 
 A bundler that targets the browser picks a browser build of the package on its own, through the `browser` field in `package.json`. It has the same API without `validateFiles()`, and it imports no Node.js built-in.
 
-The WebAssembly file is not part of your bundle. Either copy `node_modules/xerces-wasm/wasm/xerces_validator.wasm` next to the bundled script, where the module fetches it by default, or tell the module where it is:
+The WebAssembly file is not part of your bundle, so the module has to find `node_modules/xerces-wasm/wasm/xerces_validator.wasm` at run time. Where it looks by default depends on how your bundle is loaded:
+
+| Bundle loaded as | Default location of `xerces_validator.wasm` |
+| --- | --- |
+| A web worker (classic or module) | Next to the worker script. |
+| A classic `<script>` | Next to the script. |
+| A `<script type="module">` | **Relative to the page**, not the bundle. Module scripts have no `document.currentScript`, so the module cannot tell where the bundle is. |
+
+Unless your bundle is a worker or a classic script with the file copied beside it, tell the module where the file is with `initialize()`, before the first validation:
 
 ```ts
 import { initialize, validate } from "xerces-wasm";
 
-// Load it from a URL of your choice...
-await initialize({ locateFile: (file) => `/assets/${file}` });
+// Load it from a URL of your choice. With a bundler that understands
+// new URL(..., import.meta.url), this resolves next to your own module:
+await initialize({ locateFile: (file) => new URL(`./assets/${file}`, import.meta.url).href });
 
 // ...or hand over bytes you already have.
 // await initialize({ wasmBinary: await (await fetch(wasmUrl)).arrayBuffer() });
@@ -148,7 +157,7 @@ await initialize({ locateFile: (file) => `/assets/${file}` });
 const result = await validate(xmlText, xsdText);
 ```
 
-In a web worker, "next to the script" means next to the worker script. The browser build is tested with [esbuild](https://esbuild.github.io/); other bundlers need to honor the `browser` field.
+The browser build is tested with [esbuild](https://esbuild.github.io/); other bundlers need to honor the `browser` field.
 
 ## Performance
 

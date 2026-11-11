@@ -1,4 +1,4 @@
-import { getModule, toText } from "./index";
+import { getModule, toText } from "./core";
 import type {
   XmlInput,
   ProjectFiles,

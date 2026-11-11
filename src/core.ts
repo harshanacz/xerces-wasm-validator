@@ -14,9 +14,14 @@ export async function getModule(): Promise<any> {
   return _module;
 }
 
+// Buffer is a Node global. A browser has none, and nothing there can be a Buffer.
+function isBuffer(value: unknown): value is Buffer {
+  return typeof Buffer !== "undefined" && Buffer.isBuffer(value);
+}
+
 export async function toText(input: XmlInput): Promise<string> {
   if (typeof input === "string") return input;
-  if (Buffer.isBuffer(input)) return input.toString("utf8");
+  if (isBuffer(input)) return input.toString("utf8");
   if (typeof Blob !== "undefined" && input instanceof Blob) return input.text();
   throw new TypeError("Unsupported input type");
 }
@@ -24,7 +29,7 @@ export async function toText(input: XmlInput): Promise<string> {
 // ── One-off validation ────────────────────────────────────────────────────────
 
 function isSchemaBundle(xsd: XsdInput): xsd is { entry: XmlInput; imports?: Record<string, XmlInput> } {
-  return typeof xsd === "object" && !Buffer.isBuffer(xsd) && "entry" in xsd;
+  return typeof xsd === "object" && !isBuffer(xsd) && "entry" in xsd;
 }
 
 export async function validate(

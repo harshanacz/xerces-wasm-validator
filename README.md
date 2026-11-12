@@ -45,7 +45,7 @@ Paste or drop your own XSD and XML into the **[playground](https://harshanacz.gi
 npm install xerces-wasm
 ```
 
-Requires Node.js 18 or later.
+Requires Node.js 18 or later. It also runs in browsers and web workers; see [Browsers and web workers](#browsers-and-web-workers).
 
 ## Quick Start
 
@@ -98,7 +98,18 @@ One-off validation. The schema is parsed on every call, so prefer `createProject
 
 ### `validateFiles(xmlPath, xsd)`
 
-Convenience wrapper that reads the XML and XSD from disk before validating.
+Convenience wrapper that reads the XML and XSD from disk before validating. Node.js only.
+
+### `initialize(options?)`
+
+Loads the WebAssembly module ahead of time and says where its file comes from. Calling it is optional: without it, the module loads on the first validation and looks for `xerces_validator.wasm` next to the script. In a browser that default does not always work; see [Browsers and web workers](#browsers-and-web-workers).
+
+| Option       | Description                                                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------- |
+| `wasmBinary` | The contents of `xerces_validator.wasm` as an `ArrayBuffer` or `Uint8Array`. Nothing is read or fetched. |
+| `locateFile` | `(file, scriptDirectory) => string`. Returns where to load `xerces_validator.wasm` from: a URL in a browser or web worker, which is fetched; a file path or `file:` URL on Node.js, which is read from disk (an `http(s)` URL does not work there). |
+
+Call it once, before any validation. It rejects if the module is already loaded or loading. If loading fails, the next call tries again.
 
 ### `ValidationResult`
 
@@ -118,6 +129,54 @@ interface Diagnostic {
 ```
 
 `XmlInput` accepts `string`, `Buffer`, `Blob`, or `File`.
+
+## Browsers and web workers
+
+A bundler that targets the browser picks a browser build of the package through the `browser` field in `package.json`. It has the same API without `validateFiles()`, and it imports no Node.js built-in.
+
+The WebAssembly file is not part of your bundle, so the module has to find `node_modules/xerces-wasm/wasm/xerces_validator.wasm` at run time. Where it looks by default depends on how your bundle is loaded:
+
+| Bundle loaded as | Default location of `xerces_validator.wasm` |
+| --- | --- |
+| A web worker (classic or module) | Next to the worker script. |
+| A classic `<script>` | Next to the script. |
+| A `<script type="module">` | **Relative to the page**, not the bundle. Module scripts have no `document.currentScript`, so the module cannot tell where the bundle is. |
+
+Unless your bundle is a worker or a classic script with the file copied beside it, tell the module where the file is with `initialize()`, before the first validation. Give it a URL that does not depend on the bundler, for example a fixed path you copy the file to:
+
+```ts
+import { initialize, validate } from "xerces-wasm";
+
+await initialize({ locateFile: () => "/assets/xerces_validator.wasm" });
+
+// Or hand over bytes you already have:
+// await initialize({ wasmBinary: await (await fetch(wasmUrl)).arrayBuffer() });
+
+const result = await validate(xmlText, xsdText);
+```
+
+### Bundler notes
+
+- **esbuild** works with no configuration.
+- **Vite** works with no configuration. Let Vite copy the file and give you its URL with an asset import:
+
+  ```ts
+  import wasmUrl from "xerces-wasm/wasm/xerces_validator.wasm?url";
+  await initialize({ locateFile: () => wasmUrl });
+  ```
+
+  Do not build the URL from the `file` argument, as in ``new URL(`./${file}`, import.meta.url)``: Vite rewrites that pattern into a lookup among your own source files, which returns `undefined`.
+- **webpack 5** needs two settings. It does not apply the `browser` field to `node:` imports, and in a browser build it replaces `__filename` with `"/index.js"`, which hides the script location from the module:
+
+  ```js
+  // webpack.config.js
+  module.exports = {
+    externals: { "node:fs": "{}", "node:crypto": "{}" },
+    node: { __filename: false, __dirname: false },
+  };
+  ```
+
+These setups are checked in headless Chrome, with esbuild 0.25, Vite 7.1 and webpack 5.101.
 
 ## Performance
 

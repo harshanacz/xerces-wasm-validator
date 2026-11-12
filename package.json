@@ -4,6 +4,11 @@
   "description": "Fast XML schema validator using Apache Xerces-C++ compiled to WebAssembly with in-memory XSD caching",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "browser": {
+    "./dist/index.js": "./dist/browser.js",
+    "node:fs": false,
+    "node:crypto": false
+  },
   "files": [
     "dist",
     "wasm",
@@ -42,6 +47,7 @@
   "devDependencies": {
     "@types/jest": "^29.0.0",
     "@types/node": "^20.0.0",
+    "esbuild": "^0.28.2",
     "jest": "^29.0.0",
     "jest-util": "^29.7.0",
     "ts-jest": "^29.0.0",

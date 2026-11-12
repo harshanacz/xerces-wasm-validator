@@ -1,54 +1,39 @@
-// @ts-ignore
-import XercesModule from "../wasm/xerces_validator.js";
 import { readFile } from "fs/promises";
-import type { XmlInput, XsdInput, ValidationResult } from "./types";
+import * as core from "./core";
+// The module's own exports, read when a function runs rather than when it is
+// defined, so a replaced export is seen (see setProjectModuleLoader below).
+import * as self from "./index";
+import type { InitializeOptions, ValidationResult, XmlInput, XsdInput } from "./types";
 
-// ── WASM module singleton ─────────────────────────────────────────────────────
+// These are plain functions, not re-exports, so they stay ordinary writable
+// properties of the module as in 2.0.2: code that assigns a replacement, such as
+// a test stub, keeps working. A re-export would compile to a read-only getter.
 
-let _module: any = null;
-
-export async function getModule(): Promise<any> {
-  if (!_module) _module = await XercesModule();
-  return _module;
+export function getModule(): Promise<any> {
+  return core.getModule();
 }
 
-export async function toText(input: XmlInput): Promise<string> {
-  if (typeof input === "string") return input;
-  if (Buffer.isBuffer(input)) return input.toString("utf8");
-  if (typeof Blob !== "undefined" && input instanceof Blob) return input.text();
-  throw new TypeError("Unsupported input type");
+export function initialize(options: InitializeOptions = {}): Promise<void> {
+  return core.initialize(options);
 }
 
-// ── One-off validation ────────────────────────────────────────────────────────
-
-function isSchemaBundle(xsd: XsdInput): xsd is { entry: XmlInput; imports?: Record<string, XmlInput> } {
-  return typeof xsd === "object" && !Buffer.isBuffer(xsd) && "entry" in xsd;
+export function toText(input: XmlInput): Promise<string> {
+  return core.toText(input);
 }
 
-export async function validate(
+export function validate(
   xml: XmlInput,
   xsd: XsdInput,
   targetNamespace?: string
 ): Promise<ValidationResult> {
-  const mod     = await getModule();
-  const xmlText = await toText(xml);
-  const ns      = targetNamespace ?? null;
-
-  if (isSchemaBundle(xsd)) {
-    const entryText = await toText(xsd.entry);
-    const imports: Record<string, string> = {};
-    if (xsd.imports) {
-      await Promise.all(
-        Object.entries(xsd.imports).map(async ([key, val]) => {
-          imports[key] = await toText(val);
-        })
-      );
-    }
-    return mod.validate(xmlText, { entry: entryText, imports }, ns);
-  }
-
-  return mod.validate(xmlText, await toText(xsd), ns);
+  return core.validate(xml, xsd, targetNamespace);
 }
+
+// As in 2.0.2, createProjectValidator() loads the module through the exported
+// getModule, so replacing that export changes what it uses.
+core.setProjectModuleLoader(() => self.getModule());
+
+// ── File-based validation (Node only) ─────────────────────────────────────────
 
 export async function validateFiles(
   xmlPath: string,
@@ -90,6 +75,7 @@ export type {
   ProjectFiles,
   ProjectValidatorOptions,
   ProjectValidator,
+  InitializeOptions,
 } from "./types";
 
 export { createProjectValidator } from "./project-validator";

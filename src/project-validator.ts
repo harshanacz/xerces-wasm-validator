@@ -1,4 +1,4 @@
-import { getModule, toText } from "./index";
+import { loadModuleForProject, toText } from "./core";
 import type {
   XmlInput,
   ProjectFiles,
@@ -20,7 +20,7 @@ async function filesToTextMap(files: ProjectFiles): Promise<Record<string, strin
 export async function createProjectValidator(
   options: ProjectValidatorOptions
 ): Promise<ProjectValidator> {
-  const mod       = await getModule();
+  const mod       = await loadModuleForProject();
   const filesText = await filesToTextMap(options.files);
 
   if (!(options.entry in filesText)) {

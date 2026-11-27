@@ -25,6 +25,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - Rewrote the README: added an API reference, restructured the sections, and
   corrected the memory comparison in the benchmark table.
 
+## [2.0.1] - 2026-07-15
+
+### Added
+- Linked to the interactive browser playground from the README.
+
+### Changed
+- Reduced the width of the architecture diagram in the README.
+
 ## [2.0.0] - 2026-06-24
 
 Full rewrite. v2 is a complete re-architecture with a new API — v1.x code will not
@@ -44,8 +52,8 @@ work unchanged. See **Migration** below.
 - Bundled Apache Xerces-C++ license (`LICENSE-APACHE`) and `NOTICE`.
 
 ### Changed
-- **Breaking:** validation now goes through a `createProjectValidator()` instance
-  instead of a one-shot top-level call.
+- Use `createProjectValidator()` to compile schemas once and reuse them across
+  validations. The top-level `validate()` remains available for one-off validation.
 - **Breaking:** result shape is now `{ valid, parseErrors, schemaErrors }`.
 
 ### Performance
@@ -53,6 +61,8 @@ work unchanged. See **Migration** below.
   in ~0.04 ms.
 
 ### Migration
+For applications that validate repeatedly against the same schemas:
+
 1. Create one validator per project: `createProjectValidator({ entry, files })`.
 2. Pass all dependent XSDs in `files` (keyed by filename) so `xs:import` /
    `xs:include` resolve from memory.
@@ -63,4 +73,7 @@ work unchanged. See **Migration** below.
 
 Initial release.
 
+[2.0.2]: https://github.com/harshanacz/xerces-wasm-validator/releases/tag/2.0.2
+[2.0.1]: https://www.npmjs.com/package/xerces-wasm/v/2.0.1
 [2.0.0]: https://github.com/harshanacz/xerces-wasm-validator/releases/tag/2.0.0
+[1.0.0]: https://www.npmjs.com/package/xerces-wasm/v/1.0.0

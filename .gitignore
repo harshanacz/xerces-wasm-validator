@@ -1,6 +1,7 @@
 node_modules/
 dist/
 wasm/
+*.tgz
 .DS_Store
 /.claude
 /.idea
